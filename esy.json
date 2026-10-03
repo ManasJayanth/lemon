@@ -1,0 +1,15 @@
+{
+  "name": "ocaml-compiler-api-demo",
+  "version": "0.1.0",
+  "esy": {
+    "buildsInSource": true,
+    "build": [
+      "ocamlc -I +compiler-libs ocamlcommon.cma ocamlbytecomp.cma compile_program.ml -o compile_program.byte",
+      "ocamlrun ./compile_program.byte examples/hello.ml hello.byte",
+      "ocamlrun ./hello.byte"
+    ]
+  },
+  "dependencies": {
+    "ocaml": "5.5.1000"
+  }
+}
