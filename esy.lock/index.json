@@ -1,22 +1,7 @@
 {
   "checksum": "8ee2c7918c012528765165a30825124d",
-  "root": "ocaml-compiler-api-demo@link-dev:./esy.json",
+  "root": "lemon@link-dev:./esy.json",
   "node": {
-    "ocaml-compiler-api-demo@link-dev:./esy.json": {
-      "id": "ocaml-compiler-api-demo@link-dev:./esy.json",
-      "name": "ocaml-compiler-api-demo",
-      "version": "link-dev:./esy.json",
-      "source": { "type": "link-dev", "path": ".", "manifest": "esy.json" },
-      "overrides": [],
-      "dependencies": [ "ocaml@5.5.1000@d41d8cd9" ],
-      "devDependencies": [],
-      "available": [
-        [ "darwin", "x86_64" ],
-        [ "darwin", "arm64" ],
-        [ "linux", "x86_64" ],
-        [ "windows", "x86_64" ]
-      ]
-    },
     "ocaml@5.5.1000@d41d8cd9": {
       "id": "ocaml@5.5.1000@d41d8cd9",
       "name": "ocaml",
@@ -29,6 +14,21 @@
       },
       "overrides": [],
       "dependencies": [],
+      "devDependencies": [],
+      "available": [
+        [ "darwin", "x86_64" ],
+        [ "darwin", "arm64" ],
+        [ "linux", "x86_64" ],
+        [ "windows", "x86_64" ]
+      ]
+    },
+    "lemon@link-dev:./esy.json": {
+      "id": "lemon@link-dev:./esy.json",
+      "name": "lemon",
+      "version": "link-dev:./esy.json",
+      "source": { "type": "link-dev", "path": ".", "manifest": "esy.json" },
+      "overrides": [],
+      "dependencies": [ "ocaml@5.5.1000@d41d8cd9" ],
       "devDependencies": [],
       "available": [
         [ "darwin", "x86_64" ],

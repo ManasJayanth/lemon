@@ -5,3 +5,7 @@ node_modules/
 *.cmx
 *.o
 *.byte
+*.cma
+*.native
+.lemon/
+__pycache__/
