@@ -79,7 +79,8 @@ let main () =
     | _ -> ()) sources;
   let output = match !output with Some path -> path | None ->
     let source = List.find_opt is_implementation (List.rev sources) in
-    match source with None -> fail "An implementation is required to build an executable"
+    match source with
+    | None -> ""    (* checked again after duplicate-module validation *)
     | Some s -> absolute (Filename.chop_extension (Filename.basename s) ^
         if native then (if Sys.win32 then ".exe" else ".native") else ".byte") in
   let plugin = Filename.concat (Filename.dirname (absolute Sys.argv.(0))) "compiler_worker.cma" in
@@ -108,6 +109,8 @@ let main () =
               task.name kind task.name
               (String.concat ", " (List.map (fun t -> t.source) rivals)))
     | _ -> ()) tasks;
+  if not (List.exists (fun t -> not t.interface) tasks) then
+    fail "An implementation is required to build an executable";
   let provider name =
     let matches = List.filter (fun t -> t.name = name) tasks in
     match List.find_opt (fun t -> t.interface) matches with
@@ -120,15 +123,14 @@ let main () =
       | Some t when t.interface -> task.deps <- t.source :: task.deps
       | _ -> ()) tasks;
   (* Reason sources are parsed by the embedded parser and written as
-     normalized binary AST files with conventional .ml/.mli names; the
-     stock pipeline then compiles those, with diagnostics pointing at the
-     original sources. *)
+     normalized binary AST files with conventional .ml/.mli names; OCaml
+     interfaces are staged alongside so explicit-interface handling and
+     diagnostics keep working. The stock pipeline then compiles those, with
+     diagnostics pointing at the original sources. *)
   let compile_source task =
-    if Filename.check_suffix task.source ".re" || Filename.check_suffix task.source ".rei" then
-      let target = task.prefix ^ (if task.interface then ".mli" else ".ml") in
-      report (coordinator.normalize ~source:task.source ~target);
-      target
-    else task.source in
+    let target = task.prefix ^ (if task.interface then ".mli" else ".ml") in
+    report (coordinator.normalize ~source:task.source ~target);
+    target in
   List.iter (fun task -> task.compile_source <- compile_source task) tasks;
   let rec order done_sources remaining acc = match remaining with
     | [] -> List.rev acc

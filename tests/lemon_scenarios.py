@@ -323,3 +323,274 @@ def r12(p, target, jobs):
     out = p.default_output("default.re", target)
     assert out.exists(), f"missing default output {out}"
     assert p.execute(target, out).stdout == "default name\n"
+
+
+# --------------------------------------------------------------------------
+# B. Interface enforcement (I01-I12)
+# --------------------------------------------------------------------------
+
+def build_runs(p, target, sources, out, expect):
+    expected = "hi abstract\n" if expect is None else expect
+    p.build(sources, target=target, out=out)
+    assert p.execute(target, out).stdout == expected
+
+
+@case("I01", "interface", targets=EXECUTABLE_TARGETS)
+def i01(p, target, jobs):
+    p.write("lib.mli", "val greet : unit -> string\n")
+    p.write("lib.ml", 'let greet () = "hi abstract"\n')
+    p.write("main.re", 'print_endline(Lib.greet());\n')
+    build_runs(p, target, ["main.re", "lib.ml", "lib.mli"], p.dir / f"i01{exe(target)}", None)
+
+
+@case("I02", "interface", targets=EXECUTABLE_TARGETS)
+def i02(p, target, jobs):
+    p.write("lib.rei", 'let greet: unit => string;\n')
+    p.write("lib.ml", 'let greet () = "hi abstract"\n')
+    p.write("main.re", 'print_endline(Lib.greet());\n')
+    build_runs(p, target, ["main.re", "lib.ml", "lib.rei"], p.dir / f"i02{exe(target)}", None)
+
+
+@case("I03", "interface", targets=EXECUTABLE_TARGETS)
+def i03(p, target, jobs):
+    p.write("lib.mli", "val greet : unit -> string\n")
+    p.write("lib.re", 'let greet = () => "hi abstract";\n')
+    p.write("main.ml", 'let () = print_endline (Lib.greet ())\n')
+    build_runs(p, target, ["main.ml", "lib.re", "lib.mli"], p.dir / f"i03{exe(target)}", None)
+
+
+@case("I04", "interface", targets=EXECUTABLE_TARGETS)
+def i04(p, target, jobs):
+    p.write("lib.rei", 'let greet: unit => string;\n')
+    p.write("lib.re", 'let greet = () => "hi abstract";\n')
+    p.write("main.re", 'print_endline(Lib.greet());\n')
+    build_runs(p, target, ["main.re", "lib.re", "lib.rei"], p.dir / f"i04{exe(target)}", None)
+
+
+@case("I05", "interface", targets=EXECUTABLE_TARGETS)
+def i05(p, target, jobs):
+    p.write("lib.rei", 'let value: int;\n')
+    p.write("lib.re", 'let value = "forty two";\n')
+    r = p.build(["lib.re", "lib.rei"], target=target, out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "int" in r.stderr and "string" in r.stderr, r.stderr
+
+
+@case("I06", "interface", targets=EXECUTABLE_TARGETS)
+def i06(p, target, jobs):
+    p.write("lib.rei", 'let present: int;\nlet missing: int;\n')
+    p.write("lib.re", 'let present = 1;\n')
+    r = p.build(["lib.re", "lib.rei"], target=target, out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "missing" in r.stderr, r.stderr
+
+
+@case("I07", "interface", targets=EXECUTABLE_TARGETS)
+def i07(p, target, jobs):
+    p.write("lib.rei", 'let exported: int;\n')
+    p.write("lib.re", 'let exported = 40;\nlet hidden = 2;\n')
+    p.write("main.re", 'print_int(Lib.exported + Lib.hidden); print_newline();\n')
+    r = p.build(["main.re", "lib.re", "lib.rei"], target=target,
+                out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "hidden" in r.stderr, r.stderr     # the interface is actually enforced
+
+
+@case("I08", "interface", targets=EXECUTABLE_TARGETS)
+def i08(p, target, jobs):
+    p.write("counter.rei", '''
+type t;
+let make: int => t;
+let value: t => int;
+''')
+    p.write("counter.re", '''
+type t = int;
+let make = n => n;
+let value = t => t;
+''')
+    p.write("main.re", '''
+let c = Counter.make(41);
+print_int(Counter.value(c) + 1); print_newline();
+''')
+    build_runs(p, target, ["main.re", "counter.re", "counter.rei"],
+               p.dir / f"i08{exe(target)}", "42\n")
+
+
+@case("I09", "interface", targets=EXECUTABLE_TARGETS)
+def i09(p, target, jobs):
+    p.write("counter.rei", 'type t;\nlet make: int => t;\nlet value: t => int;\n')
+    p.write("counter.re", 'type t = int;\nlet make = n => n;\nlet value = t => t;\n')
+    p.write("main.re", 'print_int(Counter.value(99)); print_newline();\n')
+    r = p.build(["main.re", "counter.re", "counter.rei"], target=target,
+                out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "t" in r.stderr, r.stderr             # constructing the abstract type directly fails
+
+
+@case("I10", "interface", targets=EXECUTABLE_TARGETS)
+def i10(p, target, jobs):
+    p.write("types.re", 'type id = int;\n')
+    p.write("store.rei", 'let wrap: Types.id => int;\n')
+    p.write("store.re", 'let wrap = (id: Types.id) => id + 1;\n')
+    p.write("main.re", 'print_int(Store.wrap(41)); print_newline();\n')
+    build_runs(p, target, ["main.re", "store.re", "store.rei", "types.re"],
+               p.dir / f"i10{exe(target)}", "42\n")
+
+
+@case("I11", "interface", targets=EXECUTABLE_TARGETS)
+def i11(p, target, jobs):
+    bad = p.write("broken.rei", 'let a: int;\nlet b: (int;\n')
+    p.write("broken.re", 'let a = 1; let b = 2; let c = 3;\n')
+    r = p.build(["broken.re", "broken.rei"], target=target,
+                out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "broken.rei" in r.stderr, r.stderr
+    assert "line 2" in r.stderr or "line 3" in r.stderr, r.stderr
+
+
+@case("I12", "interface", targets=EXECUTABLE_TARGETS)
+def i12(p, target, jobs):
+    p.write("only.rei", 'let x: int;\n')
+    out = p.dir / f"x{exe(target)}"
+    r = p.build(["only.rei"], target=target, out=out, check=False)
+    assert r.returncode != 0
+    assert "implementation" in r.stderr, r.stderr
+    assert not out.exists(), "nothing may be published when no implementation exists"
+
+
+# --------------------------------------------------------------------------
+# C. Dependency graph and input validation (G01-G14)
+# --------------------------------------------------------------------------
+
+@case("G01", "graph", targets=EXECUTABLE_TARGETS, jobs=(4,))
+def g01(p, target, jobs):
+    p.write("base.ml", "let value = 40\n")
+    p.write("left.re", 'let value = Base.value + 1;\n')
+    p.write("right.ml", "let value = Base.value + 2\n")
+    p.write("main.re", 'print_int(Left.value + Right.value); print_newline();\n')
+    out = p.dir / f"diamond{exe(target)}"
+    p.build(["main.re", "left.re", "right.ml", "base.ml"], target=target, jobs=jobs, out=out)
+    assert p.execute(target, out).stdout == "83\n"
+
+
+@case("G02", "graph", targets=EXECUTABLE_TARGETS)
+def g02(p, target, jobs):
+    p.write("alpha.re", 'print_string("a");\n')
+    p.write("beta.ml", 'let () = print_string "b\\n"\n')
+    out = p.dir / f"both{exe(target)}"
+    p.build(["alpha.re", "beta.ml"], target=target, out=out)
+    assert p.execute(target, out).stdout == "ab\n"
+
+
+@case("G03", "graph", targets=EXECUTABLE_TARGETS)
+def g03(p, target, jobs):
+    # module Local shadows nothing; no external dependency may be invented
+    p.write("app.re", '''
+module Helper = { let v = 40; };
+print_int(Helper.v + 2); print_newline();
+''')
+    out = p.dir / f"shadow{exe(target)}"
+    p.build(["app.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == "42\n"
+
+
+@case("G04", "graph", targets=EXECUTABLE_TARGETS)
+def g04(p, target, jobs):
+    p.write("app.ml", 'let () = print_endline "/* Phantom.other is only in a comment"\n')
+    p.write("phantom.ml", "let unused = 1\n")
+    out = p.dir / f"comment{exe(target)}"
+    p.build(["app.ml"], target=target, out=out)   # phantom not supplied: must not be needed
+    assert p.execute(target, out).stdout == "/* Phantom.other is only in a comment\n"
+
+
+@case("G05", "graph", targets=EXECUTABLE_TARGETS)
+def g05(p, target, jobs):
+    p.write("app.re", 'print_int(Absent.value); print_newline();\n')
+    r = p.build(["app.re"], target=target, out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "Absent" in r.stderr, r.stderr
+
+
+@case("G06", "graph")
+def g06(p, target, jobs):
+    p.write("a.ml", "let x = B.y\n")
+    p.write("b.re", 'let y = A.x;\n')
+    r = p.build(["a.ml", "b.re"], check=False)
+    assert r.returncode != 0
+    low = r.stderr.lower()
+    assert "cycle" in low, r.stderr
+    assert "A" in r.stderr and "B" in r.stderr, r.stderr
+
+
+@case("G07", "graph")
+def g07(p, target, jobs):
+    p.write("one.ml", "let v = Two.v\n")
+    p.write("two.re", 'let v = Three.v;\n')
+    p.write("three.ml", "let v = One.v\n")
+    p.write("valid.re", 'print_endline("valid module");\n')
+    out = p.dir / "never"
+    r = p.build(["valid.re", "three.ml", "two.re", "one.ml"], out=out, check=False)
+    assert r.returncode != 0
+    assert "cycle" in r.stderr.lower(), r.stderr
+    assert not out.exists()
+
+
+@case("G08", "graph")
+def g08(p, target, jobs):
+    src = p.write("dup.re", 'print_endline("dup");\n')
+    r = p.build([src, src], check=False)
+    assert r.returncode != 0
+    assert "duplicate" in r.stderr.lower(), r.stderr
+
+
+@case("G09", "graph")
+def g09(p, target, jobs):
+    p.write("thing.ml", "let x = 1\n")
+    p.write("thing.re", 'let x = 2;\n')
+    r = p.build(["thing.ml", "thing.re"], check=False)
+    assert r.returncode != 0
+    assert "Thing" in r.stderr and "implementation" in r.stderr, r.stderr
+
+
+@case("G10", "graph")
+def g10(p, target, jobs):
+    p.write("thing.mli", "val x : int\n")
+    p.write("thing.rei", 'let x: int;\n')
+    r = p.build(["thing.mli", "thing.rei"], check=False)
+    assert r.returncode != 0
+    assert "Thing" in r.stderr and "interface" in r.stderr, r.stderr
+
+
+@case("G11", "graph")
+def g11(p, target, jobs):
+    p.write("a/thing.ml", "let x = 1\n")
+    p.write("b/thing.re", 'let x = 2;\n')
+    r = p.build(["a/thing.ml", "b/thing.re"], check=False)
+    assert r.returncode != 0
+    assert "Thing" in r.stderr, r.stderr
+
+
+@case("G12", "graph")
+def g12(p, target, jobs):
+    # different basenames that normalize to the same compiler module name
+    p.write("thing.ml", "let x = 1\n")
+    p.write("Thing.re", 'let x = 2;\n')
+    r = p.build(["thing.ml", "Thing.re"], check=False)
+    assert r.returncode != 0
+    assert "Thing" in r.stderr, r.stderr
+
+
+@case("G13", "graph")
+def g13(p, target, jobs):
+    r = p.build(["nowhere.re"], check=False)
+    assert r.returncode != 0
+    assert "nowhere.re" in r.stderr, r.stderr
+
+
+@case("G14", "graph")
+def g14(p, target, jobs):
+    p.write("app.txt", "not ocaml\n")
+    r = p.build(["app.txt"], check=False)
+    assert r.returncode != 0
+    for ext in (".ml", ".mli", ".re", ".rei"):
+        assert ext in r.stderr, r.stderr

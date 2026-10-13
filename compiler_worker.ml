@@ -4,6 +4,7 @@
 
 (* The reason findlib package is a wrapped library. *)
 module Reason_toolchain = Reason.Reason_toolchain
+module Reason_config = Reason.Reason_config
 module Reason_syntax_util = Reason.Reason_syntax_util
 
 (* Reason's public API returns the ppxlib wrapper's parsetree, which is
@@ -41,8 +42,11 @@ let protect f =
 let is_reason file =
   Filename.check_suffix file ".re" || Filename.check_suffix file ".rei"
 
-(* Reason -> OCaml parsetree, normalized the way refmt feeds the compiler. *)
+(* Reason -> OCaml parsetree, normalized the way refmt feeds the compiler.
+   Recovery is disabled: a syntax error must fail the build (refmt's IDE
+   recovery would silently produce a patched tree). *)
 let reason_implementation source =
+  Reason_config.recoverable := false;
   let lexbuf = Reason_toolchain.setup_lexbuf ~use_stdin:false source in
   let ast, _comments = Reason_toolchain.RE.implementation_with_comments lexbuf in
   ast
@@ -51,6 +55,7 @@ let reason_implementation source =
   |> to_host_structure
 
 let reason_interface source =
+  Reason_config.recoverable := false;
   let lexbuf = Reason_toolchain.setup_lexbuf ~use_stdin:false source in
   let ast, _comments = Reason_toolchain.RE.interface_with_comments lexbuf in
   ast
