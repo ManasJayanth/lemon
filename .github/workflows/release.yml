@@ -33,6 +33,16 @@ jobs:
       - name: Smoke-test the distribution
         run: esy sh packaging/smoke-dist.sh dist/staging/lemon-*
         shell: bash
+      - name: Build the Homebrew bottle (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          VER=$(python3 -c 'import json; print(json.load(open("esy.json"))["version"])')
+          TAG=$(brew ruby -e 'print Hardware::CPU.intel? ? MacOS.version.to_sym.to_s : "arm64_" + MacOS.version.to_sym.to_s')
+          sh packaging/make-bottle.sh "dist/staging/lemon-$VER-macos-$RUNTIME_ARCH" "$TAG"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+        env:
+          RUNTIME_ARCH: ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.platform }}-${{ matrix.arch }}
@@ -64,7 +74,6 @@ jobs:
       - name: Checksums
         run: |
           cd artifacts
-          rm -f SHA256SUMS
           find . -name 'lemon-*' -type f | sort | xargs sha256sum > SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
@@ -102,13 +111,10 @@ jobs:
           New-Item -ItemType Directory -Force $tmp | Out-Null
           Set-Content "$tmp\hello.re" 'print_endline("wingetted lemon");'
           & $lemon build --target js --react --out-dir "$tmp\js-out" "$tmp\hello.re"
-          node "$tmp\js-out\Hello.js"
-          if ($LASTEXITCODE -ne 0 -or (node "$tmp\js-out\Hello.js") -notmatch "wingetted lemon") {
-            exit 1
-          }
+          if ((node "$tmp\js-out\Hello.js") -notmatch "wingetted lemon") { exit 1 }
   homebrew:
-    # Build the stable formula against the released source tarball: the
-    # exact package a tap user gets from `brew install <owner>/lemon/lemon`.
+    # Pour the released bottle through a real `brew install`: the exact
+    # package a tap user gets from `brew install <owner>/lemon/lemon`.
     needs: release
     runs-on: macos-latest
     steps:
@@ -116,18 +122,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install the stable formula
+      - name: Install from the released bottles
         run: |
           VER=$(python3 -c 'import json; print(json.load(open("esy.json"))["version"])')
           TAG="v$VER"
-          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/lemon-source-$VER.tar.gz"
-          curl -fsSL -o "$RUNNER_TEMP/lemon-source-$VER.tar.gz" "$URL"
-          packaging/homebrew/update-formula.sh "$VER" "$RUNNER_TEMP/lemon-source-$VER.tar.gz"
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG"
+          mkdir -p dist
+          curl -fsSL -o "dist/lemon-source-$VER.tar.gz" "$BASE/lemon-source-$VER.tar.gz"
+          curl -fsSL -o dist/bottles.sha256 "$BASE/SHA256SUMS"
+          # update the formula with the released source + every bottle
+          ARGS=()
+          for TAGSHA in $(grep -oE 'lemon--[^ ]+\.bottle\.tar\.gz' dist/bottles.sha256 | sort -u); do
+            BOTTLE_TAG=$(echo "$TAGSHA" | sed -E 's/^lemon--[^.]+\.([a-z0-9_]+)\.bottle\.tar\.gz$/\1/')
+            curl -fsSL -o "dist/$TAGSHA" "$BASE/$TAGSHA"
+            ARGS+=("$BOTTLE_TAG=dist/$TAGSHA")
+          done
+          packaging/homebrew/update-formula.sh "$VER" "dist/lemon-source-$VER.tar.gz" "${ARGS[@]}"
+          TAPDEST="$(brew --repository lemon/lemon)"
+          rm -rf "$(dirname "$TAPDEST")"
+          mkdir -p "$TAPDEST/Formula"
+          cp Formula/lemon.rb "$TAPDEST/Formula/lemon.rb"
           export HOMEBREW_NO_INSTALL_CLEANUP=1
           export HOMEBREW_NO_AUTO_UPDATE=1
-          export HOMEBREW_NO_SANDBOX=1
-          brew tap lemon/lemon "$GITHUB_WORKSPACE"
-          brew install lemon/lemon/lemon
+          brew install --force lemon/lemon/lemon
       - name: Smoke-test the installed formula
         run: |
           cd "$(mktemp -d)"

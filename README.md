@@ -67,3 +67,22 @@ The full end-to-end catalog lives in `tests/test_build.py` (see
 recipes, and `docs/limitations.md` for the exact boundaries of the
 current implementation). Every scenario compiles and executes a real
 artifact.
+
+## Installing
+
+`packaging/` builds relocatable, self-contained distributions (no
+`ocamlrun` needed; only `--target native` wants an `ocamlopt`):
+
+```sh
+esy sh packaging/make-dist.sh       # dist/lemon-<ver>-<os>-<arch>.tar.gz|.zip
+esy sh packaging/smoke-dist.sh dist/staging/lemon-*
+```
+
+- **Homebrew**: `Formula/lemon.rb` pours a bottle built by the release
+  workflow. CI proves the full path on every push
+  (`packaging/homebrew/local-test.sh` builds a bottle and pours it through
+  `brew install`). See `packaging/homebrew/README.md` to publish a tap.
+- **winget**: `packaging/winget/` renders a zip+portable manifest against
+  the Windows release artifact; CI runs `winget validate` on it, and the
+  release workflow installs it through `winget` from the published URL.
+  See `packaging/winget/README.md` for the winget-pkgs submission flow.

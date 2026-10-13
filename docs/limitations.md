@@ -111,6 +111,31 @@ their symptom, cause, and the guard that fails loudly if they drift.
   packages, also clear `~/.esy/source/1/i/opam__s__<pkg>__*` when their
   content changes.
 
+## Packaging (winget, Homebrew) and install layout
+
+- **The packaged executable is bytecode linked with a custom runtime**: it
+  runs without `ocamlrun`, but `--target native` still shells out to
+  `ocamlopt` from an OCaml installation (by design: native workers are
+  external processes). Bytecode, JavaScript, and React builds are fully
+  self-contained.
+- **esy 0.9 cannot build inside Homebrew's build sandbox on newer macOS**:
+  esy's per-package `sandbox-exec` cannot nest, and its store requires a
+  shallow `HOME` ("prefixPath is too deep"). The Homebrew formula therefore
+  defaults to bottles (built on plain runners by the release workflow);
+  `--build-from-source` applies both workarounds but may still fail on the
+  newest macOS. Validated in CI via `packaging/homebrew/local-test.sh`
+  (build bottle, pour through `brew install` from a local tap, run).
+- **winget packages the Windows zip as a nested portable installer**: the
+  manifest is rendered by `packaging/winget/render-manifest.py` and
+  `winget validate`d in CI; installing from a manifest (and from the public
+  catalog, once submitted to `microsoft/winget-pkgs`) downloads from the
+  GitHub release, so the full install loop is only exercised by the release
+  workflow.
+- **Bottle tags track the macOS version of the runner** that builds them
+  (`arm64_<codename>` / `<codename>`); when GitHub moves to a new macOS
+  release the tag set in the formula must be extended. An arm64 bottle does
+  not serve x86_64 machines and vice versa.
+
 ## Testing environment quirks (encoded in the harness)
 
 - **`node` must be the real binary.** esy puts a pnp-shimmed `node` first on

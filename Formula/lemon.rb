@@ -11,16 +11,23 @@ class Lemon < Formula
   #   url "https://github.com/prometheansacrifice/lemon/releases/download/v0.2.0/lemon-source-0.2.0.tar.gz"
   #   version "0.2.0"
   #   sha256 "..."
+  #   bottle do
+  #     root_url "https://github.com/prometheansacrifice/lemon/releases/download/v0.2.0"
+  #     sha256 arm64_sequoia: "...", sequoia: "..."
+  #   end
 
   depends_on "node" => :build
 
   def install
-    # The pinned toolchain builds through esy; install it into the build
-    # prefix (esy is distributed via npm, not homebrew-core).
-    npm_prefix = buildpath/"npm-prefix"
-    ENV["npm_config_prefix"] = npm_prefix
-    system "npm", "install", "--silent", "esy@0.9.2"
-    ENV.prepend_path "PATH", npm_prefix/"bin"
+    # The pinned toolchain builds through esy (installed via npm; esy is not
+    # in homebrew-core). esy derives its store path from HOME and refuses
+    # deep prefixes, so give the build a shallow home; Homebrew's own
+    # temporary directories are too deep.
+    ENV["HOME"] = "/tmp/lemon-home-#{Process.pid}"
+    FileUtils.mkdir_p ENV["HOME"]
+    npm_prefix = Pathname.new("/tmp/lemon-npm-#{Process.pid}")
+    system "npm", "install", "--prefix", npm_prefix.to_s, "esy@0.9.2"
+    ENV.prepend_path "PATH", npm_prefix/"node_modules/.bin"
 
     # Homebrew clones HEAD without submodules; the pinned Reason, Melange,
     # and reason-react trees live in submodules.
@@ -42,6 +49,10 @@ class Lemon < Formula
       Native (--target native) compilation shells out to ocamlopt from an
       OCaml installation; bytecode, JavaScript, and React builds are fully
       self-contained. Set LEMON_LIB to override the library location.
+
+      --build-from-source builds the pinned toolchain through esy; on newer
+      macOS this can fail inside Homebrew's build sandbox because esy's own
+      sandbox cannot nest (prefer the bottle, which is the default).
     EOS
   end
 

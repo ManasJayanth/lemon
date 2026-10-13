@@ -24,7 +24,27 @@ let absolute p =
 (* Resolve through symlinks: Homebrew and winget expose bin/lemon as a
    symlink into the real Cellar/package directory. *)
 let exe_dir () =
-  let argv0 = absolute Sys.argv.(0) in
+  (* argv(0) may be a bare command name found through PATH *)
+  let resolve_on_path name =
+    match (try Some (Sys.getenv "PATH") with Not_found -> None) with
+    | None -> None
+    | Some paths ->
+      let rec go = function
+        | [] -> None
+        | dir :: rest ->
+          let cand = Filename.concat dir name in
+          if Sys.file_exists cand then Some cand else go rest
+      in
+      let dirs = String.split_on_char ':' paths in
+        go (List.filter (fun d -> d <> "") dirs)
+  in
+  let argv0 =
+    if String.contains Sys.argv.(0) Filename.dir_sep.[0] || Sys.file_exists Sys.argv.(0)
+    then absolute Sys.argv.(0)
+    else match resolve_on_path Sys.argv.(0) with
+      | Some p -> p
+      | None -> absolute Sys.argv.(0)
+  in
   let real =
     try let st = Unix.stat argv0 in ignore st.Unix.st_kind; argv0
     with _ -> argv0
