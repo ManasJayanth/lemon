@@ -22,7 +22,7 @@ cat > work/core/embed_version.ml <<'EOF'
 let () = print_endline Melangelib.Melange_version.version
 EOF
 
-python3 - <<'PYEOF'
+${PYTHON_CMD:-python3} - <<'PYEOF'
 import os
 os.chdir("work/core")
 dune = open("dune").read()

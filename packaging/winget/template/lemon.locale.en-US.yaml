@@ -1,0 +1,12 @@
+PackageIdentifier: PrometheanSacrifice.Lemon
+PackageVersion: __VERSION__
+PackageName: Lemon
+Publisher: Promethean Sacrifice
+License: LGPL-2.1-only with OCaml linking exception
+LicenseUrl: https://github.com/prometheansacrifice/lemon
+ShortDescription: Build system for OCaml and Reason with embedded Melange and React
+PackageUrl: https://github.com/prometheansacrifice/lemon
+Moniker: lemon
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
+DefaultLocale: en-US

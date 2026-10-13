@@ -1,0 +1,136 @@
+name: Release packages
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, platform: macos, arch: arm64 }
+          - { os: macos-15-intel, platform: macos, arch: x86_64 }
+          - { os: ubuntu-latest, platform: linux, arch: x86_64 }
+          - { os: windows-latest, platform: windows, arch: x86_64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm install -g esy@0.9.2
+      - run: esy
+      - run: esy sh packaging/make-dist.sh
+        shell: bash
+      - name: Smoke-test the distribution
+        run: esy sh packaging/smoke-dist.sh dist/staging/lemon-*
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/lemon-*
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 packaging/make-src-dist.py "$(pwd)" dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-source
+          path: dist/lemon-source-*
+  release:
+    needs: [build, source]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Checksums
+        run: |
+          cd artifacts
+          rm -f SHA256SUMS
+          find . -name 'lemon-*' -type f | sort | xargs sha256sum > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/lemon-*
+            artifacts/SHA256SUMS
+  winget:
+    # Install through winget from the published release URL: the exact
+    # package users get from the winget catalog.
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Render and install the manifest
+        shell: pwsh
+        run: |
+          $ver = (Get-Content esy.json | ConvertFrom-Json).version
+          $tag = "v$ver"
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/lemon-$ver-windows-x86_64.zip"
+          $zip = "$env:RUNNER_TEMP\lemon.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          python packaging/winget/render-manifest.py "$env:RUNNER_TEMP\winget" $ver $url $zip
+          winget validate --manifest "$env:RUNNER_TEMP\winget"
+          winget install --manifest "$env:RUNNER_TEMP\winget" --exact --silent `
+            --accept-source-agreements --accept-package-agreements
+      - name: Smoke-test the winget-installed lemon
+        shell: pwsh
+        run: |
+          $lemon = "$env:LOCALAPPDATA\Microsoft\WinGet\Links\lemon.exe"
+          $tmp = "$env:RUNNER_TEMP\winget-smoke"
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          Set-Content "$tmp\hello.re" 'print_endline("wingetted lemon");'
+          & $lemon build --target js --react --out-dir "$tmp\js-out" "$tmp\hello.re"
+          node "$tmp\js-out\Hello.js"
+          if ($LASTEXITCODE -ne 0 -or (node "$tmp\js-out\Hello.js") -notmatch "wingetted lemon") {
+            exit 1
+          }
+  homebrew:
+    # Build the stable formula against the released source tarball: the
+    # exact package a tap user gets from `brew install <owner>/lemon/lemon`.
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the stable formula
+        run: |
+          VER=$(python3 -c 'import json; print(json.load(open("esy.json"))["version"])')
+          TAG="v$VER"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/lemon-source-$VER.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/lemon-source-$VER.tar.gz" "$URL"
+          packaging/homebrew/update-formula.sh "$VER" "$RUNNER_TEMP/lemon-source-$VER.tar.gz"
+          export HOMEBREW_NO_INSTALL_CLEANUP=1
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_SANDBOX=1
+          brew tap lemon/lemon "$GITHUB_WORKSPACE"
+          brew install lemon/lemon/lemon
+      - name: Smoke-test the installed formula
+        run: |
+          cd "$(mktemp -d)"
+          printf 'print_endline("released lemon");\n' > hello.re
+          lemon build --target js --react --out-dir js-out hello.re
+          node js-out/Hello.js

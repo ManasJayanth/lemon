@@ -16,3 +16,4 @@ melange-assets/
 examples/react-counter/node_modules/
 examples/react-counter/dist/
 examples/react-counter/js-out/
+dist/

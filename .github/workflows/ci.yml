@@ -66,3 +66,62 @@ jobs:
         run: esy python tests/test_build.py --group browser
         env:
           LEMON_BROWSER_TESTS: '1'
+  dist:
+    # Package a relocatable distribution on every platform and prove it
+    # works from a moved copy (homebrew tap + winget package source).
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm install -g esy@0.9.2
+      - run: esy
+      - name: Build the distribution
+        run: esy sh packaging/make-dist.sh
+      - name: Smoke-test the distribution (relocated)
+        run: esy sh packaging/smoke-dist.sh dist/staging/lemon-*
+        shell: bash
+      - name: Validate the winget manifest (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          VER=$(python3 -c 'import json; print(json.load(open("esy.json"))["version"])')
+          python3 packaging/winget/render-manifest.py build/winget "$VER" \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VER}/lemon-${VER}-windows-x86_64.zip" \
+            "$(ls dist/lemon-*-windows-*.zip)"
+          winget validate --manifest build/winget
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ runner.os }}-${{ runner.arch }}
+          path: dist/lemon-*
+  homebrew:
+    # Build and install the tap formula exactly as a user would.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the formula (HEAD build)
+        run: |
+          export 
+          export HOMEBREW_NO_INSTALL_CLEANUP=1
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_SANDBOX=1
+          brew install --HEAD --formula ./packaging/homebrew/Formula/lemon.rb
+      - name: Smoke-test the installed formula
+        run: |
+          cd "$(mktemp -d)"
+          printf 'print_endline("brewed lemon");\n' > hello.re
+          lemon build --target js --react --out-dir js-out hello.re
+          node js-out/Hello.js

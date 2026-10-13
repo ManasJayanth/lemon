@@ -220,9 +220,8 @@ let main () =
     | None -> ""    (* checked again after duplicate-module validation *)
     | Some s -> absolute (Filename.chop_extension (Filename.basename s) ^
         if native then (if Sys.win32 then ".exe" else ".native") else ".byte") in
-  let here = Filename.dirname (absolute Sys.argv.(0)) in
-  let plugin = Filename.concat here "compiler_worker.cma" in
-  let js_plugin = Filename.concat here "melange_worker.cma" in
+  let plugin = Lemon_paths.plugin "compiler_worker.cma" in
+  let js_plugin = Lemon_paths.plugin "melange_worker.cma" in
   Dynlink.allow_unsafe_modules true;
   let coordinator = load_worker plugin in
   if js then Unix.putenv "MELANGELIB" Lemon_paths.melange_stdlib;
