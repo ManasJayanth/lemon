@@ -64,4 +64,6 @@ browser scenarios in `tests/`.
 
 The full end-to-end catalog lives in `tests/test_build.py` (see
 `docs/compatibility.md` for the pinned toolchain and the embedding
-recipes). Every scenario compiles and executes a real artifact.
+recipes, and `docs/limitations.md` for the exact boundaries of the
+current implementation). Every scenario compiles and executes a real
+artifact.
