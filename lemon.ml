@@ -73,7 +73,7 @@ let process program args log =
 (* lock, adjacent staging, and backup/rollback during replacement.    *)
 (* ------------------------------------------------------------------ *)
 
-let publish_js ~out_dir ~tasks ~count =
+let publish_js ~out_dir ~tasks ~count ~(react : bool) =
   let parent = Filename.dirname out_dir in
   if not (is_directory parent) then
     fail (Printf.sprintf "Output parent directory does not exist: %s" parent);
@@ -135,6 +135,8 @@ let publish_js ~out_dir ~tasks ~count =
             tasks;
           copy_tree (Filename.concat Lemon_paths.melange_assets "node_modules")
             (Filename.concat staging "node_modules");
+          if react then
+            copy_tree Lemon_paths.react_npm (Filename.concat staging "node_modules");
           let marker = open_out (Filename.concat staging ".lemon-owned") in
           output_string marker "lemon js output\n";
           close_out marker;
@@ -300,7 +302,8 @@ let main () =
           if js then
             js_workers.(index).js_compile
               {Worker_api.source = task.source; prefix = task.prefix;
-               includes = [build_dir]; jsx = !react}
+               includes = if !react then [build_dir; Lemon_paths.react_lib; Lemon_paths.melange_js_lib] else [build_dir];
+               jsx = !react}
           else if native then process "ocamlopt"
             ["-I"; build_dir; "-c"; "-o"; task.prefix ^ (if task.interface then ".cmi" else ".cmx"); task.compile_source]
             (task.prefix ^ ".log")
@@ -342,7 +345,7 @@ let main () =
   if js then
     publish_js
       ~out_dir:(match !out_dir with Some d -> d | None -> absolute ".lemon/js")
-      ~tasks ~count
+      ~tasks ~count ~react:!react
   else begin
     (* Link order follows implementation dependencies, including edges hidden by interfaces. *)
     let implementations = List.filter (fun t -> not t.interface) tasks in

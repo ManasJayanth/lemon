@@ -33,6 +33,7 @@ let _reason_is_502 :
   Fun.id
 
 module From_502 = Ppxlib_ast.Convert (Ppxlib_ast__.Versions.OCaml_502) (Ppxlib_ast__.Versions.OCaml_505)
+module To_502 = Ppxlib_ast.Convert (Ppxlib_ast__.Versions.OCaml_505) (Ppxlib_ast__.Versions.OCaml_502)
 module To_melange = Ppxlib_ast.Convert (Ppxlib_ast__.Versions.OCaml_505) (Melangelib.Ast_io.Melange_ast_version)
 module From_melange = Ppxlib_ast.Convert (Melangelib.Ast_io.Melange_ast_version) (Ppxlib_ast__.Versions.OCaml_505)
 
@@ -46,16 +47,14 @@ let to_current_signature (ast : Ppxlib.Parsetree.signature) :
   Obj.magic (From_502.copy_signature (Obj.magic ast))
 
 (* Apply the registered ppxlib transformations in-process (the React JSX
-   transform registers itself when its library is linked in). *)
-let jsx_structure ast =
-  let current : Ppxlib_ast__.Versions.OCaml_505.Ast.Parsetree.structure = ast in
-  let current : Ppxlib_ast__.Versions.OCaml_current.Ast.Parsetree.structure = Obj.magic current in
-  Obj.magic (Ppxlib.Driver.map_structure (Obj.magic current : Ppxlib.Parsetree.structure))
+   transform registers itself when its library is linked in). The ppxlib
+   wrapper's parsetree is the reason-facing 5.02 world; JSX therefore runs
+   before the 5.02 -> 5.05 conversion, directly on reason output. *)
+let jsx_structure (ast : Ppxlib.Parsetree.structure) : Ppxlib.Parsetree.structure =
+  Ppxlib.Driver.map_structure ast
 
-let jsx_signature ast =
-  let current : Ppxlib_ast__.Versions.OCaml_505.Ast.Parsetree.signature = ast in
-  let current : Ppxlib_ast__.Versions.OCaml_current.Ast.Parsetree.signature = Obj.magic current in
-  Obj.magic (Ppxlib.Driver.map_signature (Obj.magic current : Ppxlib.Parsetree.signature))
+let jsx_signature (ast : Ppxlib.Parsetree.signature) : Ppxlib.Parsetree.signature =
+  Ppxlib.Driver.map_signature ast
 
 (* ppxlib current (5.05) -> Melange's parsetree view. *)
 let to_melange_structure ast =
@@ -76,13 +75,21 @@ let parse_implementation ~jsx source : Parsetree.structure =
     ast
     |> Reason_syntax_util.(apply_mapper_to_structure remove_stylistic_attrs_mapper)
     |> Reason_syntax_util.(apply_mapper_to_structure backport_letopt_mapper)
-    |> to_current_structure
     |> (fun a -> if jsx then jsx_structure a else a)
+    |> to_current_structure
     |> to_melange_structure
   end else begin
     let ast = Melangelib.Pparse_driver.parse_implementation source in
-    if jsx then
-      ast |> melange_to_current_structure |> jsx_structure |> to_melange_structure
+    if jsx then begin
+      (* melange -> 5.05 -> 5.02 (the ppxlib wrapper's world, where the
+         registered JSX transform lives) -> back. *)
+      let v505 = melange_to_current_structure ast in
+      let v502 = To_502.copy_structure v505 in
+      let v502 : Ppxlib.Parsetree.structure = Obj.magic v502 in
+      jsx_structure v502
+      |> to_current_structure
+      |> to_melange_structure
+    end
     else ast
   end
 
@@ -94,13 +101,19 @@ let parse_interface ~jsx source : Parsetree.signature =
     ast
     |> Reason_syntax_util.(apply_mapper_to_signature remove_stylistic_attrs_mapper)
     |> Reason_syntax_util.(apply_mapper_to_signature backport_letopt_mapper)
-    |> to_current_signature
     |> (fun a -> if jsx then jsx_signature a else a)
+    |> to_current_signature
     |> to_melange_signature
   end else begin
     let ast = Melangelib.Pparse_driver.parse_interface source in
-    if jsx then
-      ast |> (fun a -> From_melange.copy_signature (Obj.magic a)) |> jsx_signature |> to_melange_signature
+    if jsx then begin
+      let v505 = From_melange.copy_signature (Obj.magic ast) in
+      let v502 = To_502.copy_signature v505 in
+      let v502 : Ppxlib.Parsetree.signature = Obj.magic v502 in
+      jsx_signature v502
+      |> to_current_signature
+      |> to_melange_signature
+    end
     else ast
   end
 

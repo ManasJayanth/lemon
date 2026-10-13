@@ -1179,3 +1179,275 @@ def w11(p, target, jobs):
     assert lines
     assert all("ocamlrun" in l or "strace" in l for l in lines), lines
     assert len(lines) <= 2, lines
+
+
+# --------------------------------------------------------------------------
+# H. JSX and React compilation (X01-X18), server-rendered
+# --------------------------------------------------------------------------
+
+def render_js(p, sources, entry):
+    out = p.dir / "out"
+    p.build(sources, target="js", out=out, extra=["--react"])
+    return p.execute("js", out / (entry + ".js")).stdout
+
+
+@case("X01", "react", targets=("js",))
+def x01(p, target, jobs):
+    p.write("greet.re", '''
+[@react.component]
+let make = () => <p id="hello"> {React.string("intrinsic text")} </p>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<Greet />));
+''')
+    assert render_js(p, ["main.re", "greet.re"], "Main") == '<p id="hello">intrinsic text</p>\n'
+
+
+@case("X02", "react", targets=("js",))
+def x02(p, target, jobs):
+    p.write("nameplate.re", '''
+[@react.component]
+let make = () => <span> {React.string("a component")} </span>;
+''')
+    p.write("app.re", '''
+let markup = ReactDOMServer.renderToStaticMarkup(<Nameplate />);
+print_endline(markup);
+''')
+    assert render_js(p, ["app.re", "nameplate.re"], "App") == "<span>a component</span>\n"
+
+
+@case("X03", "react", targets=("js",))
+def x03(p, target, jobs):
+    p.write("badge.re", '''
+[@react.component]
+let make = (~label, ~count) =>
+  <div className=label> <em> {React.string(label)} </em> <strong> {React.string(string_of_int(count))} </strong> </div>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<Badge label="hi" count=7 />));
+''')
+    assert render_js(p, ["main.re", "badge.re"], "Main") == \
+        '<div class="hi"><em>hi</em><strong>7</strong></div>\n'
+
+
+
+
+@case("X04", "react", targets=("js",))
+def x04(p, target, jobs):
+    p.write("app.re", '''
+[@react.component]
+let make = () =>
+  <>
+    <li> {React.string("first")} </li>
+    <li> {React.string("second")} </li>
+    <li> {React.string("third")} </li>
+  </>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<App />));
+''')
+    assert render_js(p, ["main.re", "app.re"], "Main") == \
+        "<li>first</li><li>second</li><li>third</li>\n"
+
+
+@case("X05", "react", targets=("js",))
+def x05(p, target, jobs):
+    p.write("app.re", '''
+[@react.component]
+let make = (~show) =>
+  <div>
+    {show ? <b> {React.string("visible")} </b> : React.null}
+  </div>;
+''')
+    p.write("main.re", '''
+let () = {
+  print_endline(ReactDOMServer.renderToStaticMarkup(<App show=true />));
+  print_endline(ReactDOMServer.renderToStaticMarkup(<App show=false />));
+};
+''')
+    assert render_js(p, ["main.re", "app.re"], "Main") == "<div><b>visible</b></div>\n<div></div>\n"
+
+
+@case("X06", "react", targets=("js",))
+def x06(p, target, jobs):
+    p.write("app.re", '''
+[@react.component]
+let make = () =>
+  <ol>
+    <li key="a"> {React.string("alpha")} </li>
+    <li key="b"> {React.string("beta")} </li>
+    <li key="c"> {React.string("gamma")} </li>
+  </ol>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<App />));
+''')
+    assert render_js(p, ["main.re", "app.re"], "Main") == \
+        "<ol><li>alpha</li><li>beta</li><li>gamma</li></ol>\n"
+
+
+@case("X07", "react", targets=("js",))
+def x07(p, target, jobs):
+    p.write("label.re", '''
+[@react.component]
+let make = (~suffix=?, ()) =>
+  <span> {React.string("text" ++ (switch (suffix) { | None => "" | Some(s) => s }))} </span>;
+''')
+    p.write("main.re", '''
+let () = {
+  print_endline(ReactDOMServer.renderToStaticMarkup(<Label />));
+  print_endline(ReactDOMServer.renderToStaticMarkup(<Label suffix="!" />));
+};
+''')
+    got = render_js(p, ["main.re", "label.re"], "Main")
+    assert got == "<span>text</span>\n<span>text!</span>\n"
+
+
+@case("X08", "react", targets=("js",))
+def x08(p, target, jobs):
+    p.write("app.re", '''
+let text = {|<b> & 'quoted' "double"</b>|};
+[@react.component]
+let make = () => <code> {React.string(text)} </code>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<App />));
+''')
+    got = render_js(p, ["main.re", "app.re"], "Main")
+    assert got == "<code>&lt;b&gt; &amp; &#x27;quoted&#x27; &quot;double&quot;&lt;/b&gt;</code>\n"
+
+
+@case("X09", "react", targets=("js",))
+def x09(p, target, jobs):
+    p.write("annotated.re", '''
+[@react.component]
+let make = (~width: int, ~title: string, ~children) =>
+  <section className={string_of_int(width) ++ " " ++ title}> children </section>;
+''')
+    p.write("main.re", '''
+print_endline(
+  ReactDOMServer.renderToStaticMarkup(
+    <Annotated width=42 title="the title"> {React.string("kid")} </Annotated>,
+  ),
+);
+''')
+    assert render_js(p, ["main.re", "annotated.re"], "Main") == \
+        '<section class="42 the title">kid</section>\n'
+
+
+@case("X10", "react", targets=("js",))
+def x10(p, target, jobs):
+    # Lazy is referenced only through JSX; it must still be scheduled
+    p.write("lazy.re", '''
+[@react.component]
+let make = () => <u> {React.string("scheduled")} </u>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<Lazy />));
+''')
+    assert render_js(p, ["main.re", "lazy.re"], "Main") == "<u>scheduled</u>\n"
+
+
+@case("X11", "react", targets=("js",), jobs=(4,))
+def x11(p, target, jobs):
+    for i in range(5):
+        p.write(f"c{i}.re", f'''
+[@react.component]
+let make = () => <i className="part{i}"> {{React.string("part{i}")}} </i>;
+''')
+    p.write("main.re", "let markup = <main> " +
+            " ".join(f"<C{i} />" for i in range(5)) + " </main>;\n" +
+            'print_endline(ReactDOMServer.renderToStaticMarkup(markup));\n')
+    expected = "<main>" + "".join(f'<i class="part{i}">part{i}</i>' for i in range(5)) + "</main>\n"
+    got = render_js(p, ["main.re"] + [f"c{i}.re" for i in range(5)], "Main")
+    assert got == expected
+
+
+@case("X12", "react", targets=("js",))
+def x12(p, target, jobs):
+    p.write("helper.ml", "let tag = \"ml-helper\"\n")
+    p.write("widget.re", '''
+[@react.component]
+let make = () => <small> {React.string(Helper.tag)} </small>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<Widget />));
+''')
+    assert render_js(p, ["main.re", "widget.re", "helper.ml"], "Main") == \
+        "<small>ml-helper</small>\n"
+
+
+@case("X13", "react", targets=("js",))
+def x13(p, target, jobs):
+    p.write("typed.re", '''
+[@react.component]
+let make = (~level: int) => <h1> {React.string(string_of_int(level))} </h1>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<Typed level="high" />));
+''')
+    r = p.build(["main.re", "typed.re"], target="js", out=p.dir / "out",
+                extra=["--react"], check=False)
+    assert r.returncode != 0
+    assert ("typed.re" in r.stderr or "main.re" in r.stderr), r.stderr  # original sources
+
+
+@case("X14", "react", targets=("js",))
+def x14(p, target, jobs):
+    p.write("needs.re", '''
+[@react.component]
+let make = (~name) => <p> {React.string(name)} </p>;
+''')
+    p.write("main.re", '''
+print_endline(ReactDOMServer.renderToStaticMarkup(<Needs />));
+''')
+    r = p.build(["main.re", "needs.re"], target="js", out=p.dir / "out",
+                extra=["--react"], check=False)
+    assert r.returncode != 0
+    assert "name" in r.stderr, r.stderr
+
+
+@case("X15", "react", targets=("js",))
+def x15(p, target, jobs):
+    p.write("broken.re", '''
+[@react.component]
+let make = () => <div> <span> {React.string("unbalanced")}
+</div>;
+''')
+    r = p.build(["broken.re"], target="js", out=p.dir / "out",
+                extra=["--react"], check=False)
+    assert r.returncode != 0
+    assert "broken.re" in r.stderr and "line" in r.stderr, r.stderr
+
+
+@case("X16", "react", targets=("js",))
+def x16(p, target, jobs):
+    p.write("badannot.re", '''
+[@react.component nonsense]
+let make = () => <div/>;
+print_endline("never");
+''')
+    r = p.build(["badannot.re"], target="js", out=p.dir / "out",
+                extra=["--react"], check=False)
+    assert r.returncode != 0
+    assert not (p.dir / "out").exists(), "partial publication after bad annotation"
+
+
+@case("X17", "react", targets=("bytecode",))
+def x17(p, target, jobs):
+    p.write("app.re", '[@react.component]\nlet make = () => <div/>;\n')
+    r = p.build(["app.re"], target="bytecode", out=p.dir / "x.byte",
+                extra=["--react"], check=False)
+    assert r.returncode != 0
+    assert "React JSX requires the JavaScript target" in r.stderr
+    assert "bytecode" in r.stderr
+
+
+@case("X18", "react", targets=("native",))
+def x18(p, target, jobs):
+    p.write("app.re", '[@react.component]\nlet make = () => <div/>;\n')
+    r = p.build(["app.re"], target="native", out=p.dir / "x.native",
+                extra=["--react"], check=False)
+    assert r.returncode != 0
+    assert "React JSX requires the JavaScript target" in r.stderr
+    assert "native" in r.stderr

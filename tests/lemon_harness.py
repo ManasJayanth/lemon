@@ -28,6 +28,24 @@ RUN_TIMEOUT = int(os.environ.get("LEMON_RUN_TIMEOUT", "60"))
 
 EXECUTABLE_TARGETS = ("bytecode", "native")
 
+def _real_node():
+    """esy puts a pnp-shimmed node first on PATH; its CJS-ESM interop drops
+    named exports of required CommonJS packages. Prefer the real binary."""
+    import subprocess
+    cached = os.environ.get("LEMON_NODE")
+    if cached:
+        return cached
+    try:
+        out = subprocess.run(["node", "-e", "console.log(process.execPath)"],
+                             capture_output=True, text=True, timeout=30).stdout.strip()
+        if out and out.endswith("node"):
+            return out.splitlines()[-1]
+    except Exception:
+        pass
+    return "node"
+
+NODE = _real_node()
+
 CASES = {}          # id -> Case
 GROUPS = {}         # group name -> [case ids]
 
@@ -154,7 +172,7 @@ class Project:
         if target == "native":
             return self.run([str(artifact)], timeout=timeout, check=True)
         if target == "js":
-            return self.run(["node", str(artifact)], timeout=timeout, check=True)
+            return self.run([NODE, str(artifact)], timeout=timeout, check=True)
         raise AssertionError(f"unknown target {target}")
 
     def default_output(self, source, target):
