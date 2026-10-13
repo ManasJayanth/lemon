@@ -156,3 +156,170 @@ def w09(p, target, jobs):
     out = p.dir / f"total{exe(target)}"
     p.build(["c.ml", "b.ml", "a.ml"], target=target, jobs=8, out=out)
     assert p.execute(target, out).stdout == ""   # links fine; no side effects
+
+
+# --------------------------------------------------------------------------
+# A. Reason syntax and application behavior (R01-R12)
+# --------------------------------------------------------------------------
+
+@case("R01", "reason", targets=EXECUTABLE_TARGETS, jobs=(1, 4))
+def r01(p, target, jobs):
+    p.write("greet.re", 'print_endline("hello from reason");\n')
+    out = p.dir / f"greet{exe(target)}"
+    p.build(["greet.re"], target=target, jobs=jobs, out=out)
+    assert p.execute(target, out).stdout == "hello from reason\n"
+
+
+@case("R02", "reason", targets=EXECUTABLE_TARGETS)
+def r02(p, target, jobs):
+    p.write("funcs.re", '''
+let add = (a, b) => a + b;
+let greet = (~name, ~punct="!", ()) => "hi " ++ name ++ punct;
+let rec fact = n => n <= 1 ? 1 : n * fact(n - 1);
+let () = {
+  print_int(add(19, 23));
+  print_newline();
+  print_endline(greet(~name="reason", ()));
+  print_endline(greet(~name="reason", ~punct="?", ()));
+  print_int(fact(5));
+  print_newline();
+};
+''')
+    out = p.dir / f"funcs{exe(target)}"
+    p.build(["funcs.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == "42\nhi reason!\nhi reason?\n120\n"
+
+
+@case("R03", "reason", targets=EXECUTABLE_TARGETS)
+def r03(p, target, jobs):
+    p.write("data.re", '''
+type shape = Circle(float) | Rect(float, float);
+type person = {name: string, age: int};
+let describe = s =>
+  switch (s) {
+  | Circle(r) => "circle r=" ++ string_of_float(r)
+  | Rect(w, h) => "rect " ++ string_of_float(w) ++ "x" ++ string_of_float(h)
+  };
+let people = [{name: "ada", age: 36}, {name: "alan", age: 41}];
+let nums = [1, 2, 3];
+let arr = [|10, 20|];
+let pair = (true, "yes");
+let () = {
+  print_endline(describe(Circle(2.0)));
+  print_endline(describe(Rect(3.0, 4.0)));
+  print_int(List.fold_left((a, b) => a + b, 0, nums));
+  print_newline();
+  print_int(arr[0] + arr[1]);
+  print_newline();
+  print_endline(snd(pair));
+  let names = List.map(p => p.name, people);
+  List.iter(print_endline, names);
+  switch (List.nth(nums, 1)) {
+  | 2 => print_endline("second is two")
+  | _ => print_endline("second is not two")
+  };
+};
+''')
+    out = p.dir / f"data{exe(target)}"
+    p.build(["data.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == (
+        "circle r=2.\nrect 3.x4.\n6\n30\nyes\nada\nalan\nsecond is two\n")
+
+
+@case("R04", "reason", targets=EXECUTABLE_TARGETS)
+def r04(p, target, jobs):
+    p.write("mods.re", '''
+module Math = {
+  let double = x => x * 2;
+  module Inner = {
+    let triple = x => x * 3;
+  };
+};
+let () = {
+  print_int(Math.double(7));
+  print_newline();
+  print_int(Math.Inner.triple(7));
+  print_newline();
+};
+''')
+    out = p.dir / f"mods{exe(target)}"
+    p.build(["mods.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == "14\n21\n"
+
+
+@case("R05", "reason", targets=EXECUTABLE_TARGETS)
+def r05(p, target, jobs):
+    p.write("exn.re", '''
+exception Boom(string);
+let () =
+  try (raise(Boom("caught"))) {
+  | Boom(msg) => print_endline("caught: " ++ msg)
+  };
+''')
+    out = p.dir / f"exn{exe(target)}"
+    p.build(["exn.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == "caught: caught\n"
+
+
+@case("R06", "reason", targets=EXECUTABLE_TARGETS)
+def r06(p, target, jobs):
+    import json
+    text = 'quote " back\\slash tab\t unicode: ünïcødé ✓ multi:\nline two'
+    p.write("strings.re", "let () = print_endline(%s);\n" % json.dumps(text, ensure_ascii=False))
+    out = p.dir / f"strings{exe(target)}"
+    p.build(["strings.re"], target=target, out=out)
+    got = p.execute(target, out).stdout
+    assert got == text + "\n", (got, text)
+
+
+@case("R07", "reason", targets=EXECUTABLE_TARGETS)
+def r07(p, target, jobs):
+    p.write("helper.ml", 'let twice x = x * 2\n')
+    p.write("main.re", 'print_int(Helper.twice(21)); print_newline();\n')
+    out = p.dir / f"mix{exe(target)}"
+    p.build(["main.re", "helper.ml"], target=target, out=out)
+    assert p.execute(target, out).stdout == "42\n"
+
+
+@case("R08", "reason", targets=EXECUTABLE_TARGETS)
+def r08(p, target, jobs):
+    p.write("helper.re", 'let thrice = x => x * 3;\n')
+    p.write("main.ml", 'let () = Printf.printf "%d\\n" (Helper.thrice 14)\n')
+    out = p.dir / f"mix{exe(target)}"
+    p.build(["main.ml", "helper.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == "42\n"
+
+
+@case("R09", "reason", targets=EXECUTABLE_TARGETS, jobs=(4,))
+def r09(p, target, jobs):
+    p.write("leaf.ml", "let value = 40\n")
+    p.write("mid.re", 'let value = Leaf.value + 1;\n')
+    p.write("top.ml", "let () = Printf.printf \"%d\\n\" (Mid.value + 1)\n")
+    out = p.dir / f"chain{exe(target)}"
+    p.build(["top.ml", "mid.re", "leaf.ml"], target=target, jobs=jobs, out=out)
+    assert p.execute(target, out).stdout == "42\n"
+
+
+@case("R10", "reason", targets=EXECUTABLE_TARGETS)
+def r10(p, target, jobs):
+    p.write("greet.re", 'let () = print_endline("no trailing newline")')
+    out = p.dir / f"greet{exe(target)}"
+    p.build(["greet.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == "no trailing newline\n"
+
+
+@case("R11", "reason")
+def r11(p, target, jobs):
+    p.write("legacy.re", 'print_endline("legacy reason");\n')
+    r = p.lemon("legacy.re", "legacy.byte")
+    assert "legacy reason" not in r.stdout
+    assert p.execute("bytecode", p.dir / "legacy.byte").stdout == "legacy reason\n"
+
+
+@case("R12", "reason", targets=EXECUTABLE_TARGETS)
+def r12(p, target, jobs):
+    p.write("default.re", 'print_endline("default name");\n')
+    p.build(["default.re"], target=target, jobs=jobs)
+    out = p.default_output("default.re", target)
+    assert out.exists(), f"missing default output {out}"
+    assert p.execute(target, out).stdout == "default name\n"

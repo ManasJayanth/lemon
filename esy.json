@@ -8,7 +8,17 @@
     ]
   },
   "dependencies": {
-    "ocaml": "5.5.1000"
+    "ocaml": "5.5.1000",
+    "@opam/reason": "path:./vendor/reason-lemon",
+    "@opam/dune": "*",
+    "@opam/menhir": "*",
+    "@opam/fix": "*",
+    "@opam/merlin-extend": "*",
+    "@opam/ppxlib": ">= 0.36.0",
+    "@opam/cmdliner": "*",
+    "@opam/dune-build-info": "*",
+    "@opam/cppo": "*",
+    "@opam/ppx_derivers": "*"
   },
   "description": "A build system for OCaml and Reason."
 }

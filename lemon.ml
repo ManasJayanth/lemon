@@ -9,7 +9,7 @@ let load_worker plugin =
   Worker_api.take ()
 
 type job = { source : string; name : string; interface : bool; prefix : string;
-             mutable deps : string list }
+             mutable deps : string list; mutable compile_source : string }
 
 let process program args log =
   let fd = Unix.openfile log [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o600 in
@@ -28,8 +28,8 @@ let main () =
   let output = ref None and sources = ref [] in
   let args = Array.to_list Sys.argv |> List.tl in
   let args = match args with "build" :: rest -> rest | rest -> rest in
-  let args = match args with [source; target_file] when Filename.check_suffix source ".ml"
-      && not (Filename.check_suffix target_file ".ml" || Filename.check_suffix target_file ".mli") ->
+  let args = match args with [source; target_file] when (Filename.check_suffix source ".ml" || Filename.check_suffix source ".re")
+      && not (List.exists (fun s -> Filename.check_suffix target_file s) [".ml"; ".mli"; ".re"; ".rei"]) ->
       ["-o"; target_file; source] | _ -> args in
   let supported_targets = ["bytecode"; "native"; "js"] in
   let rec parse = function
@@ -66,12 +66,19 @@ let main () =
     fail "The JavaScript target is not available in this build"
   end;
   let native = !target = "native" in
+  let is_implementation path =
+    Filename.check_suffix path ".ml" || Filename.check_suffix path ".re" in
   List.iter (fun source ->
-    if not (Filename.check_suffix source ".ml" || Filename.check_suffix source ".mli") then
-      fail ("Unsupported source syntax: " ^ source ^ ". Supported extensions: .ml .mli");
+    if not (List.exists (fun e -> Filename.check_suffix source e)
+               [".ml"; ".mli"; ".re"; ".rei"]) then
+      fail ("Unsupported source syntax: " ^ source ^ ". Supported extensions: .ml .mli .re .rei");
     if not (Sys.file_exists source) then fail ("Source does not exist: " ^ source)) sources;
+  List.iter (fun source ->
+    match List.filter (fun s -> s = source) sources with
+    | _ :: _ :: _ -> fail ("Duplicate input path: " ^ source)
+    | _ -> ()) sources;
   let output = match !output with Some path -> path | None ->
-    let source = List.find_opt (fun s -> Filename.check_suffix s ".ml") (List.rev sources) in
+    let source = List.find_opt is_implementation (List.rev sources) in
     match source with None -> fail "An implementation is required to build an executable"
     | Some s -> absolute (Filename.chop_extension (Filename.basename s) ^
         if native then (if Sys.win32 then ".exe" else ".native") else ".byte") in
@@ -88,11 +95,19 @@ let main () =
     Array.iter (fun name -> Sys.remove (Filename.concat build_dir name)) (Sys.readdir build_dir);
     Unix.rmdir build_dir) (fun () ->
   let tasks = List.map (fun source ->
-    {source; name = module_name source; interface = Filename.check_suffix source ".mli";
-     prefix = Filename.concat build_dir (Filename.chop_extension (Filename.basename source)); deps = []}) sources in
+    {source; name = module_name source;
+     interface = Filename.check_suffix source ".mli" || Filename.check_suffix source ".rei";
+     prefix = Filename.concat build_dir (Filename.chop_extension (Filename.basename source));
+     deps = []; compile_source = source}) sources in
   List.iter (fun task ->
-    if List.length (List.filter (fun t -> t.name = task.name && t.interface = task.interface) tasks) > 1 then
-      fail ("Duplicate module: " ^ task.name)) tasks;
+    let kind = if task.interface then "interface" else "implementation" in
+    let rivals = List.filter (fun t -> t.name = task.name && t.interface = task.interface) tasks in
+    match rivals with
+    | _ :: _ :: _ ->
+      fail (Printf.sprintf "Duplicate module %s: %s %s provided by %s"
+              task.name kind task.name
+              (String.concat ", " (List.map (fun t -> t.source) rivals)))
+    | _ -> ()) tasks;
   let provider name =
     let matches = List.filter (fun t -> t.name = name) tasks in
     match List.find_opt (fun t -> t.interface) matches with
@@ -104,6 +119,17 @@ let main () =
     if not task.interface then match provider task.name with
       | Some t when t.interface -> task.deps <- t.source :: task.deps
       | _ -> ()) tasks;
+  (* Reason sources are parsed by the embedded parser and written as
+     normalized binary AST files with conventional .ml/.mli names; the
+     stock pipeline then compiles those, with diagnostics pointing at the
+     original sources. *)
+  let compile_source task =
+    if Filename.check_suffix task.source ".re" || Filename.check_suffix task.source ".rei" then
+      let target = task.prefix ^ (if task.interface then ".mli" else ".ml") in
+      report (coordinator.normalize ~source:task.source ~target);
+      target
+    else task.source in
+  List.iter (fun task -> task.compile_source <- compile_source task) tasks;
   let rec order done_sources remaining acc = match remaining with
     | [] -> List.rev acc
     | _ ->
@@ -126,9 +152,9 @@ let main () =
       | Some (task, result) ->
         let r = try
           if native then process "ocamlopt"
-            ["-I"; build_dir; "-c"; "-o"; task.prefix ^ (if task.interface then ".cmi" else ".cmx"); task.source]
+            ["-I"; build_dir; "-c"; "-o"; task.prefix ^ (if task.interface then ".cmi" else ".cmx"); task.compile_source]
             (task.prefix ^ ".log")
-          else workers.(index).compile {source = task.source; prefix = task.prefix; includes = [build_dir]}
+          else workers.(index).compile {source = task.compile_source; prefix = task.prefix; includes = [build_dir]}
         with exn -> Error (Printexc.to_string exn) in
         result := Some r;
         (match r with Error _ -> Atomic.set stopped true | Ok _ -> ()); loop ()

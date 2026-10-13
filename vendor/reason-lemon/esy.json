@@ -1,0 +1,22 @@
+{
+  "name": "reason-lemon",
+  "version": "3.17.3-2",
+  "description": "Reason at 19bad260aff7a124aaec54797642cfa4a6aaaae0, built as an installable package for Lemon. Upstream sources are an unmodified git submodule; this wrapper only selects reason.opam and installs its artifacts.",
+  "esy": {
+    "buildsInSource": true,
+    "build": [
+      "sh ./build.sh"
+    ]
+  },
+  "dependencies": {
+    "ocaml": ">= 4.08 < 5.7",
+    "@opam/dune": ">= 3.18",
+    "@opam/menhir": ">= 20180523",
+    "@opam/fix": "*",
+    "@opam/merlin-extend": ">= 0.6.2",
+    "@opam/ppxlib": ">= 0.36.0",
+    "@opam/cmdliner": ">= 1.1.0",
+    "@opam/dune-build-info": "*",
+    "@opam/cppo": "*"
+  }
+}

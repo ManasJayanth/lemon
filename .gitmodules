@@ -1,0 +1,3 @@
+[submodule "vendor/reason-lemon/reason"]
+	path = vendor/reason-lemon/reason
+	url = https://github.com/reasonml/reason
