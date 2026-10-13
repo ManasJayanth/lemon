@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lemon_harness import case, Skip, EXECUTABLE_TARGETS  # noqa: E402
+from lemon_harness import case, Skip, EXECUTABLE_TARGETS, LEMON as LEMON_PATH  # noqa: E402
 
 
 def exe(target):
@@ -594,3 +594,251 @@ def g14(p, target, jobs):
     assert r.returncode != 0
     for ext in (".ml", ".mli", ".re", ".rei"):
         assert ext in r.stderr, r.stderr
+
+
+# --------------------------------------------------------------------------
+# D. Errors, diagnostics, and preservation (E01-E09)
+# --------------------------------------------------------------------------
+
+@case("E01", "errors", targets=EXECUTABLE_TARGETS)
+def e01(p, target, jobs):
+    p.write("unbalanced.re", 'let start = "x";\nlet f = a => (a + 1;\nprint_endline("done");\n')
+    r = p.build(["unbalanced.re"], target=target, out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "unbalanced.re" in r.stderr, r.stderr
+    assert "line 2" in r.stderr, r.stderr
+
+
+@case("E02", "errors", targets=EXECUTABLE_TARGETS)
+def e02(p, target, jobs):
+    bad = p.write("bad.re", 'let x: int = "not an int";\n')
+    r = p.build([bad], target=target, out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "bad.re" in r.stderr, r.stderr
+    assert "build-" not in r.stderr.replace(".lemon/build-", "\0").replace("\0", ""), \
+        "diagnostics must not name normalized AST files"
+
+
+@case("E03", "errors", targets=EXECUTABLE_TARGETS)
+def e03(p, target, jobs):
+    p.write("late.re",
+            '/* a comment line */\n\n/* another comment */\n\n\n'
+            'let ok = 1;\n\n\nlet bad: int = "wrong";\n')
+    r = p.build(["late.re"], target=target, out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "late.re" in r.stderr, r.stderr
+    assert "line 9" in r.stderr, r.stderr
+
+
+@case("E04", "errors", targets=EXECUTABLE_TARGETS)
+def e04(p, target, jobs):
+    p.write("uni.re", 'let greek = "αβγδε ζηθικ λμνξο πρστυφ";\nlet bad: int = true;\n')
+    r = p.build(["uni.re"], target=target, out=p.dir / f"x{exe(target)}", check=False)
+    assert r.returncode != 0
+    assert "uni.re" in r.stderr and "line 2" in r.stderr, r.stderr
+
+
+@case("E05", "errors", targets=EXECUTABLE_TARGETS)
+def e05(p, target, jobs):
+    p.write("app.re", 'print_endline("first version");\n')
+    out = p.dir / f"app{exe(target)}"
+    p.build(["app.re"], target=target, out=out)
+    before = out.read_bytes()
+    p.write("app.re", 'let x : int = "broken"\n')
+    r = p.build(["app.re"], target=target, out=out, check=False)
+    assert r.returncode != 0
+    p.assert_output_intact(out, before)
+    assert p.execute(target, out).stdout == "first version\n"
+
+
+@case("E06", "errors", targets=EXECUTABLE_TARGETS)
+def e06(p, target, jobs):
+    p.write("lib.rei", 'let v: int;\n')
+    p.write("lib.re", 'let v = 1;\n')
+    p.write("main.re", 'print_int(Lib.v); print_newline();\n')
+    out = p.dir / f"app{exe(target)}"
+    p.build(["main.re", "lib.re", "lib.rei"], target=target, out=out)
+    before = out.read_bytes()
+    p.write("lib.rei", 'let v: string;\n')
+    r = p.build(["main.re", "lib.re", "lib.rei"], target=target, out=out, check=False)
+    assert r.returncode != 0
+    p.assert_output_intact(out, before)
+    assert p.execute(target, out).stdout == "1\n"
+
+
+@case("E07", "errors", targets=EXECUTABLE_TARGETS)
+def e07(p, target, jobs):
+    # a mid-wave failure with many other jobs active
+    for i in range(10):
+        p.write(f"part{i}.re", f'print_endline("part{i}");\n')
+    p.write("boom.re", 'let x : int = "explodes";\n')
+    sources = [f"part{i}.re" for i in range(10)] + ["boom.re"]
+    out = p.dir / f"app{exe(target)}"
+    r = p.build(sources, target=target, jobs=4, out=out, check=False)
+    assert r.returncode != 0
+    assert not out.exists(), "no partial executable may be published"
+    assert not out.with_suffix(".tmp").exists()
+
+
+@case("E08", "errors", targets=EXECUTABLE_TARGETS)
+def e08(p, target, jobs):
+    p.write("app.re", 'let broken : int = "x";\n')
+    r = p.build(["app.re"], target=target, out=p.dir / f"a{exe(target)}", check=False)
+    assert r.returncode != 0
+    p.write("app.re", 'print_endline("recovered");\n')
+    out = p.dir / f"a{exe(target)}"
+    p.build(["app.re"], target=target, out=out)
+    assert p.execute(target, out).stdout == "recovered\n"
+    leftovers = list((p.dir / ".lemon").iterdir()) if (p.dir / ".lemon").exists() else []
+    assert leftovers == [], f"stale build dirs: {leftovers}"
+
+
+@case("E09", "errors", targets=EXECUTABLE_TARGETS)
+def e09(p, target, jobs):
+    p.write("warn.re",
+            'let pick = (x: option(int)) => switch (x) { | Some(v) => v };\n'
+            'let () = print_int(pick(Some(2))); print_newline();\n')
+    out = p.dir / f"w{exe(target)}"
+    r = p.build(["warn.re"], target=target, out=out)   # succeeds with a warning
+    assert "warn.re" in r.stderr, r.stderr             # warning names the original source
+    assert p.execute(target, out).stdout == "2\n"
+
+
+# --------------------------------------------------------------------------
+# E. Worker isolation and build semantics (W01-W06, W10, W12)
+# --------------------------------------------------------------------------
+
+def write_twelve_modules(p, reason=True):
+    for i in range(12):
+        if reason:
+            p.write(f"part{i}.re", f'let answer = 30 + {i};\n')
+        else:
+            p.write(f"part{i}.ml", f"let answer = 30 + {i}\n")
+
+
+@case("W01", "workers", targets=EXECUTABLE_TARGETS, jobs=(4,))
+def w01(p, target, jobs):
+    write_twelve_modules(p)
+    p.write("sum.re",
+            'let total = [| Part0.answer, Part1.answer, Part2.answer, Part3.answer,'
+            ' Part4.answer, Part5.answer, Part6.answer, Part7.answer,'
+            ' Part8.answer, Part9.answer, Part10.answer, Part11.answer |]'
+            ' |> Array.fold_left((a, b) => a + b, 0);\n'
+            'print_int(total); print_newline();\n')
+    out = p.dir / f"sum{exe(target)}"
+    p.build(["sum.re"] + [f"part{i}.re" for i in range(12)], target=target, jobs=jobs, out=out)
+    assert p.execute(target, out).stdout == f"{sum(30 + i for i in range(12))}\n"
+
+
+@case("W02", "workers", targets=EXECUTABLE_TARGETS, jobs=(4,))
+def w02(p, target, jobs):
+    # six dependent layers: five-plus waves through a four-worker pool
+    chain = ["level0.ml", "level1.re", "level2.ml", "level3.re", "level4.ml", "level5.re"]
+    p.write("level0.ml", "let v = 1\n")
+    for n, prev in zip(chain[1:], chain):
+        lang = ".re" if n.endswith(".re") else ".ml"
+        mod = prev.split(".")[0].capitalize()
+        if lang == ".re":
+            p.write(n, f'let v = {mod}.v + 1;\n')
+        else:
+            p.write(n, f"let v = {mod}.v + 1\n")
+    p.write("main.re", 'print_int(Level5.v); print_newline();\n')
+    out = p.dir / f"chain{exe(target)}"
+    p.build(["main.re"] + list(reversed(chain)), target=target, jobs=jobs, out=out)
+    assert p.execute(target, out).stdout == "6\n"
+
+
+@case("W03", "workers", targets=EXECUTABLE_TARGETS, jobs=(4,))
+def w03(p, target, jobs):
+    # identical local names, different types and values
+    p.write("a.re", 'let common = "alpha";\n')
+    p.write("b.re", 'let common = 2;\n')
+    p.write("c.re", 'type t = {common: bool};\nlet common = {common: true};\n')
+    p.write("main.re", 'print_endline(A.common); print_int(B.common); print_endline(C.common.common ? " t" : " f");\n')
+    out = p.dir / f"iso{exe(target)}"
+    p.build(["main.re", "a.re", "b.re", "c.re"], target=target, jobs=jobs, out=out)
+    assert p.execute(target, out).stdout == "alpha\n2 t\n"
+
+
+@case("W04", "workers", targets=EXECUTABLE_TARGETS, jobs=(4,))
+def w04(p, target, jobs):
+    for i in range(5):
+        proj = p.mkdir(f"run{i}")
+        # reuse the scenario body inline: independent modules + chain + shadows
+        for j in range(12):
+            (proj / f"part{j}.re").write_text(f'let answer = {i}0 + {j};\n')
+        (proj / "leaf.ml").write_text("let v = 1\n")
+        for n, prev in zip(("l1.re", "l2.ml", "l3.re"), ("leaf.ml", "l1.re", "l2.ml")):
+            mod = prev.split(".")[0].capitalize()
+            code = f'let v = {mod}.v + 1;\n' if n.endswith(".re") else f"let v = {mod}.v + 1\n"
+            (proj / n).write_text(code)
+        (proj / "main.re").write_text(
+            'let s = Part0.answer + Part11.answer; print_int(s + L3.v); print_newline();\n')
+        out = proj / f"m{exe(target)}"
+        r = p.run(["ocamlrun", str(LEMON_PATH),
+                   "build", "--target", target, "-j", "4", "-o", str(out),
+                   str(proj / "main.re")] +
+                  [str(proj / f"part{j}.re") for j in range(12)] +
+                  [str(proj / x) for x in ("l3.re", "l2.ml", "l1.re", "leaf.ml")],
+                  check=True)
+        assert p.execute(target, out).stdout == f"{i * 10 + 0 + i * 10 + 11 + 4}\n"
+
+
+@case("W05", "workers", targets=EXECUTABLE_TARGETS)
+def w05(p, target, jobs):
+    write_twelve_modules(p)
+    p.write("sum.re", 'print_int(Part0.answer + Part11.answer); print_newline();\n')
+    sources = ["sum.re"] + [f"part{i}.re" for i in range(12)]
+    results = []
+    for workers in (1, 4):
+        out = p.dir / f"sum{workers}{exe(target)}"
+        p.build(sources, target=target, jobs=workers, out=out)
+        results.append(p.execute(target, out).stdout)
+    assert results[0] == results[1], "worker count changed observable results"
+
+
+@case("W06", "workers", targets=("native",), jobs=(4,))
+def w06(p, target, jobs):
+    write_twelve_modules(p, reason=False)
+    p.write("sum.ml", 'let () = Printf.printf "%d\\n" (Part0.answer + Part11.answer)\n')
+    out = p.dir / "sum.native"
+    p.build(["sum.ml"] + [f"part{i}.ml" for i in range(12)], target=target, jobs=jobs, out=out)
+    assert p.execute(target, out).stdout == f"{30 + 30 + 11}\n"
+
+
+@case("W10", "workers", needs=("strace",))
+def w10(p, target, jobs):
+    import subprocess
+    if __import__("platform").system() != "Linux":
+        import lemon_harness
+        raise lemon_harness.Skip("strace fixtures run on Linux")
+    p.write("app.re", 'print_endline("traced");\n')
+    out = p.dir / "app.byte"
+    trace = p.dir / "trace.txt"
+    with open(trace, "w") as fh:
+        subprocess.run(["strace", "-f", "-e", "trace=execve,fork,vfork",
+                        "ocamlrun", str(_lemon_path()), "build", "-o", str(out), "app.re"],
+                       cwd=str(p.dir), stdout=fh, stderr=fh, timeout=int(__import__("os").environ.get("LEMON_BUILD_TIMEOUT","180")), check=True)
+    lines = [l for l in trace.read_text().splitlines() if "execve" in l]
+    # only the initial ocamlrun execve may appear: no compiler processes, ever
+    assert lines, "no trace captured"
+    assert all("ocamlrun" in l or "strace" in l for l in lines), lines
+    assert len(lines) <= 2, lines
+
+
+@case("W12", "workers", targets=EXECUTABLE_TARGETS)
+def w12(p, target, jobs):
+    import os
+    import stat
+    shims = p.mkdir("shims")
+    for name in ("refmt", "ocamlfind", "ppx_jane", "ocamlpp"):
+        shim = shims / name
+        shim.write_text("#!/bin/sh\nexit 42\n")
+        shim.chmod(0o755)
+        assert shim.stat().st_mode & stat.S_IXUSR
+    env = dict(os.environ)
+    env["PATH"] = f"{shims}:{env['PATH']}"
+    p.write("app.re", 'print_endline("no external tools");\n')
+    out = p.dir / f"app{exe(target)}"
+    p.build(["app.re"], target=target, out=out, env=env)
+    assert p.execute(target, out).stdout == "no external tools\n"

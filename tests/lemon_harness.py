@@ -72,6 +72,7 @@ def have_capability(cap):
         "symlinks": have_symlinks,
         "unprivileged": lambda: os.environ.get("LEMON_UNPRIVILEGED") == "1",
         "node": lambda: shutil.which("node") is not None,
+        "strace": lambda: shutil.which("strace") is not None,
         "browser": lambda: os.environ.get("LEMON_BROWSER_TESTS") == "1",
     }.get(cap, lambda: False)()
 
@@ -125,13 +126,13 @@ class Project:
             assert ok, detail
         return proc
 
-    def lemon(self, *args, check=True, timeout=BUILD_TIMEOUT):
+    def lemon(self, *args, check=True, timeout=BUILD_TIMEOUT, env=None):
         argv = ["ocamlrun", str(LEMON)]
         argv += [str(a) for a in args]
-        return self.run(argv, timeout=timeout, check=(True if check is None else check))
+        return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env)
 
     # -- helpers ----------------------------------------------------------
-    def build(self, sources, target=None, jobs=None, out=None, extra=(), check=True):
+    def build(self, sources, target=None, jobs=None, out=None, extra=(), check=True, env=None):
         """Invoke `lemon build` with the given options."""
         args = ["build"]
         if target:
@@ -143,7 +144,7 @@ class Project:
         elif out:
             args += ["-o", str(out)]
         args += list(extra) + [str(s) for s in sources]
-        return self.lemon(*args, check=check)
+        return self.lemon(*args, check=check, env=env)
 
     def execute(self, target, artifact, timeout=RUN_TIMEOUT):
         """Run a produced application: bytecode via ocamlrun, native directly,
