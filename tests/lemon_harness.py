@@ -144,13 +144,13 @@ class Project:
             assert ok, detail
         return proc
 
-    def lemon(self, *args, check=True, timeout=BUILD_TIMEOUT, env=None):
+    def lemon(self, *args, check=True, timeout=BUILD_TIMEOUT, env=None, cwd=None):
         argv = ["ocamlrun", str(LEMON)]
         argv += [str(a) for a in args]
-        return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env)
+        return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env, cwd=cwd)
 
     # -- helpers ----------------------------------------------------------
-    def build(self, sources, target=None, jobs=None, out=None, extra=(), check=True, env=None):
+    def build(self, sources, target=None, jobs=None, out=None, extra=(), check=True, env=None, cwd=None):
         """Invoke `lemon build` with the given options."""
         args = ["build"]
         if target:
@@ -162,7 +162,7 @@ class Project:
         elif out:
             args += ["-o", str(out)]
         args += list(extra) + [str(s) for s in sources]
-        return self.lemon(*args, check=check, env=env)
+        return self.lemon(*args, check=check, env=env, cwd=cwd)
 
     def execute(self, target, artifact, timeout=RUN_TIMEOUT):
         """Run a produced application: bytecode via ocamlrun, native directly,

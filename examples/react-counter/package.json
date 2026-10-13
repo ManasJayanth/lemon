@@ -1,0 +1,12 @@
+{
+  "name": "lemon-react-counter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "playwright": "1.64.0",
+    "vite": "^5.4.0"
+  }
+}

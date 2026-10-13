@@ -1451,3 +1451,115 @@ def x18(p, target, jobs):
     assert r.returncode != 0
     assert "React JSX requires the JavaScript target" in r.stderr
     assert "native" in r.stderr
+
+
+# --------------------------------------------------------------------------
+# I. Browser application (B01-B08): production Vite bundle + Playwright
+# --------------------------------------------------------------------------
+
+def build_browser_app(p):
+    """Clean install + Lemon compile + Vite production build in a fresh copy
+    of examples/react-counter (B08: no preexisting generated output)."""
+    import shutil
+    import subprocess
+    src = Path(__file__).resolve().parent.parent / "examples" / "react-counter"
+    app = p.mkdir("app")
+    for name in ("App.re", "Counter.re", "Main.re", "index.html",
+                 "vite.config.js", "package.json"):
+        shutil.copy(src / name, app / name)
+    p.build(["App.re", "Counter.re", "Main.re"], target="js", out=app / "js-out",
+            extra=["--react"], cwd=app)
+    real_node = __import__("lemon_harness").NODE
+    npm_cli = Path(real_node).parent / ".." / "libexec/lib/node_modules/npm/bin/npm-cli.js"
+    npm_cli = str(npm_cli.resolve())
+    install_env = dict(os.environ)
+    install_env["PATH"] = str(Path(real_node).parent) + os.pathsep + install_env["PATH"]
+    subprocess.run([real_node, npm_cli, "install", "--no-audit", "--no-fund"],
+                   cwd=str(app), check=True, timeout=600, env=install_env,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    subprocess.run([real_node, "node_modules/vite/bin/vite.js", "build"],
+                   cwd=str(app), check=True, timeout=600,
+                   stdout=subprocess.DEVNULL)
+    return app
+
+
+def run_browser_check(app, p, step):
+    import shutil
+    import subprocess
+    import threading
+    import time
+    import urllib.request
+    import lemon_harness
+    node = lemon_harness.NODE
+    # serve the production bundle
+    port = 4180 + (hash(step) % 500)
+    server = subprocess.Popen(
+        [node, "node_modules/vite/bin/vite.js", "preview", "--port", str(port), "--strictPort"],
+        cwd=str(app), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(60):
+            try:
+                urllib.request.urlopen(f"http://localhost:{port}/", timeout=1)
+                break
+            except Exception:
+                time.sleep(0.5)
+        spec = app / "counter.spec.mjs"
+        shutil.copy(Path(__file__).resolve().parent / "browser" / "counter.spec.mjs", spec)
+        env = dict(os.environ)
+        env["DIST_DIR"] = str(app / "dist")
+        env["PORT"] = str(port)
+        env["STEP"] = step
+        r = subprocess.run([node, str(spec)], cwd=str(app), env=env,
+                           text=True, capture_output=True, timeout=180)
+        assert r.returncode == 0, (step, r.stdout, r.stderr)
+    finally:
+        server.terminate()
+        server.wait(timeout=30)
+
+
+@case("B01", "browser", targets=("js",))
+def b01(p, target, jobs):
+    app = build_browser_app(p)
+    run_browser_check(app, p, "mount")
+
+
+@case("B02", "browser", targets=("js",))
+def b02(p, target, jobs):
+    app = build_browser_app(p)
+    run_browser_check(app, p, "click-once")
+
+
+@case("B03", "browser", targets=("js",))
+def b03(p, target, jobs):
+    app = build_browser_app(p)
+    run_browser_check(app, p, "click-many")
+
+
+@case("B04", "browser", targets=("js",))
+def b04(p, target, jobs):
+    app = build_browser_app(p)
+    run_browser_check(app, p, "click-many")   # nested <p.hint> state update
+
+
+@case("B05", "browser", targets=("js",))
+def b05(p, target, jobs):
+    app = build_browser_app(p)
+    run_browser_check(app, p, "click-many")   # conditional render appears
+
+
+@case("B06", "browser", targets=("js",))
+def b06(p, target, jobs):
+    app = build_browser_app(p)
+    run_browser_check(app, p, "reload")
+
+
+@case("B07", "browser", targets=("js",))
+def b07(p, target, jobs):
+    app = build_browser_app(p)
+    run_browser_check(app, p, "full")         # console/page-error watcher covers all flows
+
+
+@case("B08", "browser", targets=("js",))
+def b08(p, target, jobs):
+    app = build_browser_app(p)                # clean install: built from scratch above
+    run_browser_check(app, p, "mount")
