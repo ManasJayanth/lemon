@@ -37,3 +37,31 @@ Run the end-to-end checks with `esy python tests/test_build.py`. GitHub Actions
 runs these checks on Linux, macOS ARM/Intel, and Windows. The checks execute
 bytecode and native programs, exercise interfaces and parallel dependency
 scheduling, and verify failed builds do not replace successful output.
+
+
+## Reason, JavaScript, and React
+
+Lemon accepts `.ml/.mli/.re/.rei` sources for every target. Reason is parsed
+by an embedded copy of the pinned Reason parser (no `refmt`, no `-pp`); for
+bytecode and native the parse trees are written as normalized binary AST
+files that the stock compiler pipeline consumes, with diagnostics pointing
+at the original sources.
+
+`--target js` compiles through an embedded private copy of the pinned
+Melange driver in one process (no `melc` subprocesses) and publishes an ES
+module directory guarded by an ownership marker, a sibling lock, staging,
+and backup/rollback. Add `--react` to run the embedded React JSX transform
+in-process and bundle the pinned react/react-dom runtimes into the output.
+
+```sh
+esy ocamlrun ./_esy/default/build/lemon.byte build --target js --react \
+  --out-dir js-out Main.re
+node js-out/Main.js
+```
+
+`examples/react-counter` is a Vite application built this way; see the
+browser scenarios in `tests/`.
+
+The full end-to-end catalog lives in `tests/test_build.py` (see
+`docs/compatibility.md` for the pinned toolchain and the embedding
+recipes). Every scenario compiles and executes a real artifact.
