@@ -1,5 +1,5 @@
 {
-  "checksum": "73f3356030d6e85c5e8e5b6ff88ce23f",
+  "checksum": "fd3fdd4ce03d95986b26db60a4e73ed0",
   "root": "lemon@link-dev:./esy.json",
   "node": {
     "ocaml@5.5.1000@d41d8cd9": {
@@ -30,11 +30,14 @@
       "overrides": [],
       "dependencies": [
         "ocaml@5.5.1000@d41d8cd9",
+        "@opam/reason-react-ppx@path:vendor/reason-react-lemon@d41d8cd9",
+        "@opam/reason-react@path:vendor/reason-react-lemon@d41d8cd9",
         "@opam/reason@path:vendor/reason-lemon@d41d8cd9",
         "@opam/ppxlib@opam:0.39.0@c925e4a9",
         "@opam/ppx_derivers@opam:1.2.1@d78727cd",
         "@opam/merlin-extend@opam:0.6.2@f9530fc0",
         "@opam/menhir@opam:20260209@61084610",
+        "@opam/melange@opam:7.0.1-55@c53d4e2c",
         "@opam/fix@opam:20250919@c2fe39ac",
         "@opam/dune-build-info@opam:3.24.2@e3506498",
         "@opam/dune@opam:3.24.2@dc9091c2", "@opam/cppo@opam:1.8.0@1dba4c9c",
@@ -79,6 +82,52 @@
         [ "windows", "x86_64" ]
       ]
     },
+    "@opam/reason-react-ppx@path:vendor/reason-react-lemon@d41d8cd9": {
+      "id": "@opam/reason-react-ppx@path:vendor/reason-react-lemon@d41d8cd9",
+      "name": "@opam/reason-react-ppx",
+      "version": "path:vendor/reason-react-lemon",
+      "source": {
+        "type": "install",
+        "source": [ "path:vendor/reason-react-lemon" ]
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@5.5.1000@d41d8cd9", "@opam/reason@opam:3.18.0@b53bce5b",
+        "@opam/ppxlib@opam:0.39.0@c925e4a9",
+        "@opam/melange@opam:7.0.1-55@c53d4e2c",
+        "@opam/dune@opam:3.24.2@dc9091c2"
+      ],
+      "devDependencies": [],
+      "available": [
+        [ "darwin", "x86_64" ],
+        [ "darwin", "arm64" ],
+        [ "linux", "x86_64" ],
+        [ "windows", "x86_64" ]
+      ]
+    },
+    "@opam/reason-react@path:vendor/reason-react-lemon@d41d8cd9": {
+      "id": "@opam/reason-react@path:vendor/reason-react-lemon@d41d8cd9",
+      "name": "@opam/reason-react",
+      "version": "path:vendor/reason-react-lemon",
+      "source": {
+        "type": "install",
+        "source": [ "path:vendor/reason-react-lemon" ]
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@5.5.1000@d41d8cd9", "@opam/reason@opam:3.18.0@b53bce5b",
+        "@opam/ppxlib@opam:0.39.0@c925e4a9",
+        "@opam/melange@opam:7.0.1-55@c53d4e2c",
+        "@opam/dune@opam:3.24.2@dc9091c2"
+      ],
+      "devDependencies": [],
+      "available": [
+        [ "darwin", "x86_64" ],
+        [ "darwin", "arm64" ],
+        [ "linux", "x86_64" ],
+        [ "windows", "x86_64" ]
+      ]
+    },
     "@opam/reason@path:vendor/reason-lemon@d41d8cd9": {
       "id": "@opam/reason@path:vendor/reason-lemon@d41d8cd9",
       "name": "@opam/reason",
@@ -98,6 +147,49 @@
         "@opam/cmdliner@opam:2.1.1@071b019b"
       ],
       "devDependencies": [],
+      "available": [
+        [ "darwin", "x86_64" ],
+        [ "darwin", "arm64" ],
+        [ "linux", "x86_64" ],
+        [ "windows", "x86_64" ]
+      ]
+    },
+    "@opam/reason@opam:3.18.0@b53bce5b": {
+      "id": "@opam/reason@opam:3.18.0@b53bce5b",
+      "name": "@opam/reason",
+      "version": "opam:3.18.0",
+      "source": {
+        "type": "install",
+        "source": [
+          "archive:https://opam.ocaml.org/cache/sha256/4f/4fba6a16f54551b78e1d90eb2c167f6ee964caf5383bc2d2f93ceccc7e64dc44#sha256:4fba6a16f54551b78e1d90eb2c167f6ee964caf5383bc2d2f93ceccc7e64dc44",
+          "archive:https://github.com/reasonml/reason/releases/download/3.18.0/reason-3.18.0.tbz#sha256:4fba6a16f54551b78e1d90eb2c167f6ee964caf5383bc2d2f93ceccc7e64dc44"
+        ],
+        "opam": {
+          "name": "reason",
+          "version": "3.18.0",
+          "path": "esy.lock/opam/reason.3.18.0"
+        }
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@5.5.1000@d41d8cd9", "@opam/ppxlib@opam:0.39.0@c925e4a9",
+        "@opam/merlin-extend@opam:0.6.2@f9530fc0",
+        "@opam/menhir@opam:20260209@61084610",
+        "@opam/fix@opam:20250919@c2fe39ac",
+        "@opam/dune-build-info@opam:3.24.2@e3506498",
+        "@opam/dune@opam:3.24.2@dc9091c2", "@opam/cppo@opam:1.8.0@1dba4c9c",
+        "@opam/cmdliner@opam:2.1.1@071b019b",
+        "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "ocaml@5.5.1000@d41d8cd9", "@opam/ppxlib@opam:0.39.0@c925e4a9",
+        "@opam/merlin-extend@opam:0.6.2@f9530fc0",
+        "@opam/menhir@opam:20260209@61084610",
+        "@opam/fix@opam:20250919@c2fe39ac",
+        "@opam/dune-build-info@opam:3.24.2@e3506498",
+        "@opam/dune@opam:3.24.2@dc9091c2", "@opam/cppo@opam:1.8.0@1dba4c9c",
+        "@opam/cmdliner@opam:2.1.1@071b019b"
+      ],
       "available": [
         [ "darwin", "x86_64" ],
         [ "darwin", "arm64" ],
@@ -388,6 +480,45 @@
         "@opam/menhirGLR@opam:20260209@4817244a",
         "@opam/menhirCST@opam:20260209@a164990a",
         "@opam/dune@opam:3.24.2@dc9091c2"
+      ],
+      "available": [
+        [ "darwin", "x86_64" ],
+        [ "darwin", "arm64" ],
+        [ "linux", "x86_64" ],
+        [ "windows", "x86_64" ]
+      ]
+    },
+    "@opam/melange@opam:7.0.1-55@c53d4e2c": {
+      "id": "@opam/melange@opam:7.0.1-55@c53d4e2c",
+      "name": "@opam/melange",
+      "version": "opam:7.0.1-55",
+      "source": {
+        "type": "install",
+        "source": [
+          "archive:https://opam.ocaml.org/cache/sha256/83/8377c0860da82528ebde16a0133f270c1a03de35036bd44bbd8cfb87070a7afb#sha256:8377c0860da82528ebde16a0133f270c1a03de35036bd44bbd8cfb87070a7afb",
+          "archive:https://github.com/melange-re/melange/releases/download/7.0.1-55/melange-7.0.1-55.tbz#sha256:8377c0860da82528ebde16a0133f270c1a03de35036bd44bbd8cfb87070a7afb"
+        ],
+        "opam": {
+          "name": "melange",
+          "version": "7.0.1-55",
+          "path": "esy.lock/opam/melange.7.0.1-55"
+        }
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@5.5.1000@d41d8cd9", "@opam/ppxlib@opam:0.39.0@c925e4a9",
+        "@opam/menhir@opam:20260209@61084610",
+        "@opam/dune-build-info@opam:3.24.2@e3506498",
+        "@opam/dune@opam:3.24.2@dc9091c2", "@opam/cppo@opam:1.8.0@1dba4c9c",
+        "@opam/cmdliner@opam:2.1.1@071b019b",
+        "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "ocaml@5.5.1000@d41d8cd9", "@opam/ppxlib@opam:0.39.0@c925e4a9",
+        "@opam/menhir@opam:20260209@61084610",
+        "@opam/dune-build-info@opam:3.24.2@e3506498",
+        "@opam/dune@opam:3.24.2@dc9091c2",
+        "@opam/cmdliner@opam:2.1.1@071b019b"
       ],
       "available": [
         [ "darwin", "x86_64" ],

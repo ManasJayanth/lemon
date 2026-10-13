@@ -18,7 +18,10 @@
     "@opam/cmdliner": "*",
     "@opam/dune-build-info": "*",
     "@opam/cppo": "*",
-    "@opam/ppx_derivers": "*"
+    "@opam/ppx_derivers": "*",
+    "@opam/melange": "7.0.1-55",
+    "@opam/reason-react-ppx": "path:./vendor/reason-react-lemon",
+    "@opam/reason-react": "path:./vendor/reason-react-lemon"
   },
   "description": "A build system for OCaml and Reason."
 }

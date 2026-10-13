@@ -842,3 +842,340 @@ def w12(p, target, jobs):
     out = p.dir / f"app{exe(target)}"
     p.build(["app.re"], target=target, out=out, env=env)
     assert p.execute(target, out).stdout == "no external tools\n"
+
+
+# --------------------------------------------------------------------------
+# F. JavaScript backend (J01-J12)
+# --------------------------------------------------------------------------
+
+@case("J01", "js", targets=("js",))
+def j01(p, target, jobs):
+    p.write("main.ml", 'let () = print_endline "hello from ocaml js"\n')
+    p.build(["main.ml"], target="js", out=p.dir / "out")
+    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "hello from ocaml js\n"
+
+
+@case("J02", "js", targets=("js",))
+def j02(p, target, jobs):
+    p.write("main.re", 'print_endline("hello from reason js");\n')
+    p.build(["main.re"], target="js", out=p.dir / "out")
+    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "hello from reason js\n"
+
+
+@case("J03", "js", targets=("js",), jobs=(2,))
+def j03(p, target, jobs):
+    p.write("dep.ml", "let v = List.length [1; 2; 3]\n")
+    p.write("mid.re", 'let v = Dep.v + 1;\n')
+    p.write("main.re", 'print_int(Mid.v); print_newline();\n')
+    p.build(["main.re", "mid.re", "dep.ml"], target="js", jobs=jobs, out=p.dir / "out")
+    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "4\n"
+
+
+@case("J04", "js", targets=("js",))
+def j04(p, target, jobs):
+    p.write("ops.re", '''
+type color = Red | Green | Blue;
+exception TooBig;
+let describe = c =>
+  switch (c) {
+  | Red => "red"
+  | Green => "green"
+  | Blue => "blue"
+  };
+let safeDouble = n =>
+  if (n > 100) { raise(TooBig); } else { n * 2 };
+let () = {
+  print_endline(describe(Red));
+  print_endline(describe(Blue));
+  print_int(safeDouble(21));
+  print_newline();
+  print_int(List.fold_left((a, b) => a + b, 0, [1, 2, 3, 4]));
+  print_newline();
+  print_endline(string_of_int(int_of_string("7")));
+  print_int(String.length("héllo"));  // UTF-16 code units under JS
+  print_newline();
+  (try (ignore(safeDouble(1000))) {
+   | TooBig => print_endline("caught TooBig")
+   });
+};
+''')
+    p.build(["ops.re"], target="js", out=p.dir / "out")
+    assert p.execute("js", p.dir / "out" / "Ops.js").stdout == (
+        "red\nblue\n42\n10\n7\n6\ncaught TooBig\n")
+
+
+@case("J05", "js", targets=("js",), jobs=(2,))
+def j05(p, target, jobs):
+    # each dependency is compiled by a different private worker instance
+    for i in range(6):
+        p.write(f"m{i}.re", f'let v = {i};\n')
+    p.write("main.re", 'print_int(M0.v + M5.v); print_newline();\n')
+    p.build(["main.re"] + [f"m{i}.re" for i in range(6)], target="js", jobs=jobs,
+             out=p.dir / "out")
+    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "5\n"
+
+
+@case("J06", "js", targets=("bytecode", "native", "js"))
+def j06(p, target, jobs):
+    p.write("lib.re", 'let answer = 42;\n')
+    p.write("main.re", 'print_int(Lib.answer); print_newline();\n')
+    if target == "js":
+        p.build(["main.re", "lib.re"], target="js", out=p.dir / "js-out")
+        got = p.execute("js", p.dir / "js-out" / "Main.js").stdout
+    else:
+        out = p.dir / f"app{exe(target)}"
+        p.build(["main.re", "lib.re"], target=target, out=out)
+        got = p.execute(target, out).stdout
+    assert got == "42\n"
+
+
+@case("J07", "js", targets=("js",))
+def j07(p, target, jobs):
+    import shutil as _sh
+    p.write("main.re", 'print_endline("relocatable");\n')
+    p.build(["main.re"], target="js", out=p.dir / "out")
+    moved = p.dir / "moved elsewhere"
+    _sh.move(str(p.dir / "out"), str(moved))
+    assert p.execute("js", moved / "Main.js").stdout == "relocatable\n"
+
+
+@case("J08", "js", targets=("js",))
+def j08(p, target, jobs):
+    p.mkdir("sp ace dir")
+    p.write("sp ace dir/main.re", 'print_endline("spaces");\n')
+    p.build(["sp ace dir/main.re"], target="js", out="sp ace dir/out")
+    assert p.execute("js", p.dir / "sp ace dir" / "out" / "Main.js").stdout == "spaces\n"
+
+
+@case("J09", "js", targets=("js",))
+def j09(p, target, jobs):
+    p.write("app.re", 'print_endline("x");\n')
+    r = p.build(["app.re"], target="js", out=p.dir / "out", extra=["--native"], check=False)
+    assert r.returncode != 0 and "combine" in r.stderr.lower(), r.stderr
+
+
+@case("J10", "js", targets=("js", "bytecode"))
+def j10(p, target, jobs):
+    p.write("app.re", 'print_endline("x");\n')
+    if target == "js":
+        r = p.build(["app.re"], target="js", out=p.dir / "o", extra=["-o", "x.js"], check=False)
+    else:
+        r = p.build(["app.re"], target="bytecode", out=p.dir / "x.byte",
+                    extra=["--out-dir", "d"], check=False)
+    assert r.returncode != 0, "conflicting output option accepted"
+
+
+@case("J11", "js", targets=("js",))
+def j11(p, target, jobs):
+    p.write("app.re", 'print_endline("x");\n')
+    r = p.build(["app.re"], target="js", out=p.dir / "out", extra=["--target", "wasm"], check=False)
+    assert r.returncode != 0
+    assert "bytecode" in r.stderr and "native" in r.stderr and "js" in r.stderr, r.stderr
+
+
+@case("J12", "js", targets=("js",))
+def j12(p, target, jobs):
+    p.write("lib.re", 'let v = 1;\n')
+    p.write("main.re", 'print_int(Lib.v); print_newline();\n')
+    p.build(["main.re", "lib.re"], target="js", out=p.dir / "out")
+    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "1\n"
+    p.write("lib.re", 'let v : int = "broken";\n')
+    r = p.build(["main.re", "lib.re"], target="js", out=p.dir / "out", check=False)
+    assert r.returncode != 0
+    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "1\n"   # earlier output intact
+
+
+# --------------------------------------------------------------------------
+# G. JavaScript output publication (P01-P12)
+# --------------------------------------------------------------------------
+
+@case("P01", "publication", targets=("js",))
+def p01(p, target, jobs):
+    p.write("main.re", 'print_endline("first publish");\n')
+    out = p.dir / "out"
+    p.build(["main.re"], target="js", out=out)
+    assert (out / ".lemon-owned").exists(), "ownership marker missing"
+    assert (out / "Main.js").exists()
+    assert (out / "node_modules" / "melange").is_dir()
+    assert p.execute("js", out / "Main.js").stdout == "first publish\n"
+
+
+@case("P02", "publication", targets=("js",))
+def p02(p, target, jobs):
+    p.write("main.re", 'print_endline("v1");\n')
+    out = p.dir / "out"
+    p.build(["main.re"], target="js", out=out)
+    p.write("main.re", 'print_endline("v2");\n')
+    p.build(["main.re"], target="js", out=out)
+    assert p.execute("js", out / "Main.js").stdout == "v2\n"
+    assert (out / ".lemon-owned").exists()
+
+
+@case("P03", "publication", targets=("js",))
+def p03(p, target, jobs):
+    p.write("extra.re", 'let x = 1;\n')
+    p.write("main.re", 'print_endline("shrunk");\n')
+    out = p.dir / "out"
+    p.build(["main.re", "extra.re"], target="js", out=out)
+    assert (out / "Extra.js").exists()
+    p.build(["main.re"], target="js", out=out)
+    assert not (out / "Extra.js").exists(), "obsolete module still published"
+    assert p.execute("js", out / "Main.js").stdout == "shrunk\n"
+
+
+@case("P04", "publication", targets=("js",))
+def p04(p, target, jobs):
+    out = p.mkdir("out")
+    (out / "precious.txt").write_text("do not touch\n")
+    p.write("main.re", 'print_endline("nope");\n')
+    r = p.build(["main.re"], target="js", out=out, check=False)
+    assert r.returncode != 0
+    assert "refus" in r.stderr.lower(), r.stderr
+    assert (out / "precious.txt").read_text() == "do not touch\n"
+    assert not (out / "Main.js").exists()
+
+
+@case("P05", "publication", targets=("js",))
+def p05(p, target, jobs):
+    out = p.mkdir("out")
+    p.write("out/main.re", 'print_endline("inside");\n')
+    src = p.dir / "out" / "main.re"
+    out2 = p.dir / "out2"
+    (out / ".lemon-owned").write_text("lemon js output\n")
+    # a fresh destination publishes fine even when the source happens to live
+    # inside some other (owned) lemon output directory
+    p.build([src], target="js", out=out2)
+    # now target the directory that actually contains the source
+    r2 = p.build([src], target="js", out=out, check=False)
+    assert r2.returncode != 0
+    assert "refusing" in r2.stderr, r2.stderr
+    assert src.exists(), "input source was harmed"
+
+
+@case("P06", "publication", targets=("js",), needs=("symlinks",))
+def p06(p, target, jobs):
+    import os
+    real = p.mkdir("real")
+    out = p.dir / "out"
+    os.symlink(str(real), str(out))
+    (real / "keep.txt").write_text("kept\n")
+    p.write("main.re", 'print_endline("no");\n')
+    r = p.build(["main.re"], target="js", out=out, check=False)
+    assert r.returncode != 0
+    assert "symlink" in r.stderr.lower(), r.stderr
+    assert (real / "keep.txt").exists()
+    assert out.is_symlink()
+
+
+@case("P07", "publication", targets=("js",))
+def p07(p, target, jobs):
+    out = p.dir / "out"
+    (p.dir / "out.lock").write_text("")          # a publisher is already active
+    p.write("main.re", 'print_endline("no");\n')
+    r = p.build(["main.re"], target="js", out=out, check=False)
+    assert r.returncode != 0
+    assert "lock" in r.stderr.lower(), r.stderr
+    assert not out.exists()
+
+
+@case("P08", "publication", targets=("js",))
+def p08(p, target, jobs):
+    p.write("main.re", 'print_endline("good");\n')
+    out = p.dir / "out"
+    p.build(["main.re"], target="js", out=out)
+    before = sorted((f.relative_to(out), f.read_bytes()) for f in out.rglob("*") if f.is_file())
+    p.write("main.re", 'let x : int = "bad";\n')
+    r = p.build(["main.re"], target="js", out=out, check=False)
+    assert r.returncode != 0
+    after = sorted((f.relative_to(out), f.read_bytes()) for f in out.rglob("*") if f.is_file())
+    assert before == after, "failed rebuild changed published output"
+    assert p.execute("js", out / "Main.js").stdout == "good\n"
+
+
+@case("P09", "publication", targets=("js",))
+def p09(p, target, jobs):
+    import shutil as _sh
+    p.write("main.re", 'print_endline("v1");\n')
+    out = p.dir / "out"
+    p.build(["main.re"], target="js", out=out)
+    # simulate an interrupted replacement: output moved to backup, staging gone
+    _sh.move(str(out), str(p.dir / "out.lemon-backup"))
+    p.write("main.re", 'print_endline("v2");\n')
+    r = p.build(["main.re"], target="js", out=out)
+    assert "recovering previous output" in r.stdout, r.stdout
+    assert p.execute("js", out / "Main.js").stdout == "v2\n"
+    assert not (p.dir / "out.lemon-backup").exists()
+
+
+@case("P10", "publication", targets=("js",))
+def p10(p, target, jobs):
+    out = p.dir / "out"
+    p.write("main.re", 'print_endline("stage");\n')
+    stale = p.mkdir("out.lemon-stage-99999")
+    (stale / "junk.js").write_text("// stale\n")
+    p.build(["main.re"], target="js", out=out)
+    assert (out / "Main.js").exists()
+    assert not stale.exists(), "stale staging directory not cleaned"
+    assert p.execute("js", out / "Main.js").stdout == "stage\n"
+
+
+@case("P11", "publication", targets=("js",), needs=("unprivileged",))
+def p11(p, target, jobs):
+    import os, stat as stat_mod
+    if not hasattr(os, "geteuid") or os.geteuid() == 0:
+        import lemon_harness
+        raise lemon_harness.Skip("meaningful only for unprivileged users")
+    locked = p.mkdir("locked")
+    os.chmod(locked, stat_mod.S_IREAD | stat_mod.S_IEXEC)
+    p.write("main.re", 'print_endline("x");\n')
+    r = p.build(["main.re"], target="js", out=locked / "out", check=False)
+    assert r.returncode != 0
+    assert not (locked / "out").exists()
+    assert list(locked.glob(".lemon*")) == [], "staging or lock leaked"
+
+
+@case("P12", "publication", targets=("js",))
+def p12(p, target, jobs):
+    import subprocess
+    p.write("a.re", 'print_endline("A");\n')
+    p.write("b.re", 'print_endline("B");\n')
+    env = None
+    targets = [("outa", "a.re"), ("outb", "b.re")]
+    procs = [
+        subprocess.Popen(["ocamlrun", str(LEMON_PATH), "build", "--target", "js",
+                          "--out-dir", str(p.dir / outdir), str(p.dir / src)],
+                         cwd=str(p.dir), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        for outdir, src in targets]
+    for pr in procs:
+        o, e = pr.communicate(timeout=300)
+        assert pr.returncode == 0, (o, e)
+    assert p.execute("js", p.dir / "outa" / "A.js").stdout == "A\n"
+    assert p.execute("js", p.dir / "outb" / "B.js").stdout == "B\n"
+
+
+# --------------------------------------------------------------------------
+# W11: JavaScript builds stay in-process
+# --------------------------------------------------------------------------
+
+@case("W11", "workers", needs=("strace",))
+def w11(p, target, jobs):
+    import subprocess
+    import platform
+    if platform.system() != "Linux":
+        import lemon_harness
+        raise lemon_harness.Skip("strace fixtures run on Linux")
+    p.write("dep.re", 'let v = 1;\n')
+    p.write("main.re", 'print_int(Dep.v); print_newline();\n')
+    out = p.dir / "out"
+    trace = p.dir / "trace.txt"
+    with open(trace, "w") as fh:
+        subprocess.run(["strace", "-f", "-e", "trace=execve,fork,vfork",
+                        "ocamlrun", str(LEMON_PATH), "build", "--target", "js",
+                        "--out-dir", str(out), "main.re", "dep.re"],
+                       cwd=str(p.dir), stdout=fh, stderr=fh,
+                       timeout=int(__import__("os").environ.get("LEMON_BUILD_TIMEOUT", "180")),
+                       check=True)
+    lines = [l for l in trace.read_text().splitlines() if "execve" in l]
+    assert lines
+    assert all("ocamlrun" in l or "strace" in l for l in lines), lines
+    assert len(lines) <= 2, lines

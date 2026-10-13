@@ -1,12 +1,18 @@
 {
   "name": "reason-lemon",
-  "version": "3.17.3-2",
+  "version": "3.17.3",
   "description": "Reason at 19bad260aff7a124aaec54797642cfa4a6aaaae0, built as an installable package for Lemon. Upstream sources are an unmodified git submodule; this wrapper only selects reason.opam and installs its artifacts.",
   "esy": {
     "buildsInSource": true,
     "build": [
       "sh ./build.sh"
-    ]
+    ],
+    "exportedEnv": {
+      "reason_lemon__lib": {
+        "val": "#{self.install}/lib",
+        "scope": "global"
+      }
+    }
   },
   "dependencies": {
     "ocaml": ">= 4.08 < 5.7",

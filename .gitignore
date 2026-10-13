@@ -9,3 +9,7 @@ node_modules/
 *.native
 .lemon/
 __pycache__/
+work/
+embed/
+core/
+melange-assets/

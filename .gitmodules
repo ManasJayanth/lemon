@@ -1,3 +1,9 @@
 [submodule "vendor/reason-lemon/reason"]
 	path = vendor/reason-lemon/reason
 	url = https://github.com/reasonml/reason
+[submodule "vendor/reason-react-lemon/reason-react"]
+	path = vendor/reason-react-lemon/reason-react
+	url = https://github.com/reasonml/reason-react
+[submodule "vendor/melange-embed/melange"]
+	path = vendor/melange-embed/melange
+	url = https://github.com/melange-re/melange

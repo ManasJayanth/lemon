@@ -1,0 +1,28 @@
+{
+  "name": "reason-react-lemon",
+  "version": "0.17.0",
+  "description": "reason-react 0.17.0 (tag 6c7bb86d) built as installable packages for Lemon: reason-react-ppx (the embedded JSX transform library) and reason-react (the React bindings). Upstream sources are an unmodified git submodule; this wrapper only selects the opam packages and installs their artifacts.",
+  "esy": {
+    "buildsInSource": true,
+    "build": [
+      "sh ./build.sh"
+    ],
+    "exportedEnv": {
+      "reason_react_lemon__lib": {
+        "val": "#{self.install}/lib",
+        "scope": "global"
+      },
+      "reason_react_lemon__bin": {
+        "val": "#{self.install}/bin",
+        "scope": "global"
+      }
+    }
+  },
+  "dependencies": {
+    "ocaml": ">= 4.14 < 5.7",
+    "@opam/dune": ">= 3.9",
+    "@opam/ppxlib": ">= 0.36.0",
+    "@opam/reason": "*",
+    "@opam/melange": "7.0.1-55"
+  }
+}
