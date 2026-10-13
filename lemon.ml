@@ -22,34 +22,59 @@ let process program args log =
   match status with Unix.WEXITED 0 -> Ok message | _ -> Error (program ^ " failed:\n" ^ message)
 
 let main () =
-  let native = ref false and jobs = ref (min 4 (Domain.recommended_domain_count ())) in
+  let target = ref "bytecode" and target_given = ref false in
+  let native_given = ref false and out_dir = ref None in
+  let jobs = ref (min 4 (Domain.recommended_domain_count ())) in
   let output = ref None and sources = ref [] in
   let args = Array.to_list Sys.argv |> List.tl in
   let args = match args with "build" :: rest -> rest | rest -> rest in
-  let args = match args with [source; target] when Filename.check_suffix source ".ml"
-      && not (Filename.check_suffix target ".ml" || Filename.check_suffix target ".mli") ->
-      ["-o"; target; source] | _ -> args in
+  let args = match args with [source; target_file] when Filename.check_suffix source ".ml"
+      && not (Filename.check_suffix target_file ".ml" || Filename.check_suffix target_file ".mli") ->
+      ["-o"; target_file; source] | _ -> args in
+  let supported_targets = ["bytecode"; "native"; "js"] in
   let rec parse = function
     | [] -> ()
-    | "--native" :: rest -> native := true; parse rest
-    | "-j" :: value :: rest -> jobs := int_of_string value; parse rest
+    | "--native" :: rest ->
+      if !target_given then fail "Conflicting options: --native cannot be combined with --target";
+      native_given := true; target := "native"; parse rest
+    | "--target" :: value :: rest ->
+      if !native_given then fail "Conflicting options: --native cannot be combined with --target";
+      if not (List.mem value supported_targets) then
+        fail ("Unknown target: " ^ value ^ ". Supported targets: " ^ String.concat ", " supported_targets);
+      target := value; target_given := true; parse rest
+    | "--out-dir" :: value :: rest -> out_dir := Some (absolute value); parse rest
+    | "-j" :: value :: rest ->
+      (match int_of_string_opt value with
+       | Some n when n >= 1 -> jobs := n; parse rest
+       | _ -> fail ("Invalid worker count for -j: " ^ value))
     | "-o" :: value :: rest -> output := Some (absolute value); parse rest
     | arg :: _ when String.starts_with ~prefix:"-" arg -> fail ("Unknown option: " ^ arg)
     | source :: rest -> sources := absolute source :: !sources; parse rest
   in
   parse args;
   let sources = List.rev !sources in
-  if sources = [] || !jobs < 1 then
-    fail "Usage: lemon.byte build [-j N] [--native] [-o OUTPUT] SOURCE.ml [SOURCE.mli ...]";
+  if sources = [] then
+    fail "Usage: lemon.byte build [-j N] [--target bytecode|native|js] [-o OUTPUT | --out-dir DIR] SOURCE...";
+  (match !out_dir with
+   | Some _ when !target <> "js" ->
+     fail "--out-dir applies to the JavaScript target; use -o for executables"
+   | _ -> ());
+  if !target = "js" then begin
+    (match !output with
+     | Some _ -> fail "-o names executables; the JavaScript target publishes a directory with --out-dir"
+     | None -> ());
+    fail "The JavaScript target is not available in this build"
+  end;
+  let native = !target = "native" in
   List.iter (fun source ->
     if not (Filename.check_suffix source ".ml" || Filename.check_suffix source ".mli") then
-      fail ("Unsupported source syntax: " ^ source);
+      fail ("Unsupported source syntax: " ^ source ^ ". Supported extensions: .ml .mli");
     if not (Sys.file_exists source) then fail ("Source does not exist: " ^ source)) sources;
   let output = match !output with Some path -> path | None ->
     let source = List.find_opt (fun s -> Filename.check_suffix s ".ml") (List.rev sources) in
     match source with None -> fail "An implementation is required to build an executable"
     | Some s -> absolute (Filename.chop_extension (Filename.basename s) ^
-        if !native then (if Sys.win32 then ".exe" else ".native") else ".byte") in
+        if native then (if Sys.win32 then ".exe" else ".native") else ".byte") in
   let plugin = Filename.concat (Filename.dirname (absolute Sys.argv.(0))) "compiler_worker.cma" in
   Dynlink.allow_unsafe_modules true;
   let coordinator = load_worker plugin in
@@ -88,7 +113,7 @@ let main () =
   in
   let waves = order [] tasks [] in
   let count = min !jobs (List.length tasks) in
-  let workers = if !native then [||] else Array.init count (fun _ -> load_worker plugin) in
+  let workers = if native then [||] else Array.init count (fun _ -> load_worker plugin) in
   let queue = Atomic.make [] and stopped = Atomic.make false in
   let rec take () =
     let before = Atomic.get queue in
@@ -100,7 +125,7 @@ let main () =
       | None -> ()
       | Some (task, result) ->
         let r = try
-          if !native then process "ocamlopt"
+          if native then process "ocamlopt"
             ["-I"; build_dir; "-c"; "-o"; task.prefix ^ (if task.interface then ".cmi" else ".cmx"); task.source]
             (task.prefix ^ ".log")
           else workers.(index).compile {source = task.source; prefix = task.prefix; includes = [build_dir]}
@@ -144,12 +169,12 @@ let main () =
     Option.map (fun d -> d.source) (List.find_opt (fun d -> d.name = name) implementations))
       (unwrap (coordinator.dependencies t.source))) implementations;
   let ordered = List.concat (order [] implementations []) in
-  let objects = List.map (fun t -> t.prefix ^ if !native then ".cmx" else ".cmo") ordered in
+  let objects = List.map (fun t -> t.prefix ^ if native then ".cmx" else ".cmo") ordered in
   let temporary = Filename.temp_file ~temp_dir:(Filename.dirname output) ".lemon-" ".out" in
   Fun.protect ~finally:(fun () -> if Sys.file_exists temporary then Sys.remove temporary) (fun () ->
-    report (if !native then process "ocamlopt" (objects @ ["-o"; temporary]) (Filename.concat build_dir "link.log")
+    report (if native then process "ocamlopt" (objects @ ["-o"; temporary]) (Filename.concat build_dir "link.log")
       else coordinator.link objects temporary);
     Sys.rename temporary output);
-  Printf.printf "Lemon: built %s (%s, %d workers)\n%!" output (if !native then "native" else "bytecode") count)
+  Printf.printf "Lemon: built %s (%s, %d workers)\n%!" output (if native then "native" else "bytecode") count)
 
 let () = try main () with exn -> Printf.eprintf "Lemon: %s\n%!" (Printexc.to_string exn); exit 1

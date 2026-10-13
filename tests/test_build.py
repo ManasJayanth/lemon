@@ -1,49 +1,71 @@
-"""End-to-end tests: execute every produced program, including parallel builds."""
-import os
-from pathlib import Path
-import subprocess
+"""CLI entry for the Lemon end-to-end catalog. See lemon_harness.py."""
+import argparse
+import shutil
+import sys
 import tempfile
+from pathlib import Path
 
-root = Path(__file__).resolve().parents[1]
-lemon = root / '_esy/default/build/lemon.byte'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lemon_harness as H  # noqa: E402
+import lemon_scenarios      # noqa: F401,E402  (registers the catalog)
 
-def call(args, cwd, success=True):
-    p = subprocess.run(args, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    assert (p.returncode == 0) == success, (args, p.stdout, p.stderr)
-    return p
 
-with tempfile.TemporaryDirectory(prefix='lemon test ') as directory:
-    cwd = Path(directory)
-    def write(name, text):
-        (cwd / name).write_text(text)
-    write('value.mli', 'val answer : int\n')
-    write('value.ml', 'let answer = 40\n')
-    for i in range(12):
-        write(f'part{i}.ml', f'let answer = Value.answer + {i}\n')
-    write('main.ml', 'let () = Printf.printf "%d\\n" (Part0.answer + Part2.answer)\n')
-    sources = ['main.ml'] + [f'part{i}.ml' for i in range(12)] + ['value.ml', 'value.mli']
-    for native in (False, True):
-        output = 'program.exe' if native else 'program.byte'
-        for workers in (1, 4):
-            call(['ocamlrun', str(lemon), 'build', '-j', str(workers), '-o', output]
-                 + (['--native'] if native else []) + sources, cwd)
-            run = [str(cwd / output)] if native else ['ocamlrun', output]
-            assert call(run, cwd).stdout == '82\n'
-        before = (cwd / output).read_bytes()
-        write('bad.ml', 'let x : int = "wrong"\n')
-        p = call(['ocamlrun', str(lemon), 'build', '-o', output]
-                 + (['--native'] if native else []) + ['bad.ml'], cwd, False)
-        assert 'int' in p.stderr and 'string' in p.stderr, p.stderr
-        assert (cwd / output).read_bytes() == before, 'Failed build replaced output'
-    write('a.ml', 'let x = B.x\n')
-    write('b.ml', 'let x = A.x\n')
-    p = call(['ocamlrun', str(lemon), 'build', 'a.ml', 'b.ml'], cwd, False)
-    assert 'cycle' in p.stderr, p.stderr
-    call(['ocamlrun', str(lemon), 'build', '-j', '0', 'value.ml'], cwd, False)
-    # The compatibility invocation still works, and building never runs the program.
-    write('hello.ml', 'let () = print_endline "hello"\n')
-    p = call(['ocamlrun', str(lemon), 'hello.ml', 'hello.byte'], cwd)
-    assert '\nhello\n' not in p.stdout
-    assert call(['ocamlrun', 'hello.byte'], cwd).stdout == 'hello\n'
-    assert not list((cwd / '.lemon').iterdir()), 'Temporary artifacts were not cleaned'
-print('PASS: bytecode/native, 1/4 workers, interfaces, dependencies, errors, output preservation')
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--case", action="append", default=[])
+    ap.add_argument("--group", action="append", default=[])
+    ap.add_argument("--suite", default=None)
+    ap.add_argument("--target", default=None,
+                    choices=["bytecode", "native", "js"])
+    ap.add_argument("--jobs", default=None)
+    args = ap.parse_args()
+
+    if not H.LEMON.exists():
+        print(f"lemon.byte not built: {H.LEMON}\nrun: esy", file=sys.stderr)
+        return 2
+
+    ids = []
+    for cid in args.case:
+        if cid not in H.CASES:
+            print(f"unknown case {cid}", file=sys.stderr)
+            return 2
+        ids.append(cid)
+    for g in args.group:
+        if g not in H.GROUPS:
+            print(f"unknown group {g}", file=sys.stderr)
+            return 2
+        ids += H.GROUPS[g]
+    if args.suite:
+        if args.suite not in H.SUITES:
+            print(f"unknown suite {args.suite}", file=sys.stderr)
+            return 2
+        ids += H.SUITES[args.suite]()
+    if not ids:
+        ids = H.SUITES["baseline"]()
+
+    scratch = Path(tempfile.mkdtemp(prefix="lemon-e2e "))
+    counts = {}
+    failures = []
+    try:
+        for cid in ids:
+            jobs = int(args.jobs) if args.jobs is not None else None
+            for r in H.run_case(H.CASES[cid], target=args.target, jobs=jobs, base=scratch):
+                counts[r.status] = counts.get(r.status, 0) + 1
+                mark = {"passed": "ok", "failed": "FAIL", "skipped": "skip",
+                        "unsupported": "unsup"}[r.status]
+                print(f"[{mark}] {r.label()} {r.detail if r.status != 'passed' else ''}")
+                if r.status == "failed":
+                    failures.append(r)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+    print(f"\n{len(ids)} scenarios: "
+          + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+    if failures:
+        print("failures preserved under tests/artifacts/")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
