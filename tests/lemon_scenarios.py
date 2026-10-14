@@ -1483,8 +1483,20 @@ def build_browser_app(p):
     p.build(["App.re", "Counter.re", "Main.re"], target="js", out=app / "js-out",
             extra=["--react"], cwd=app)
     real_node = __import__("lemon_harness").NODE
-    npm_cli = Path(real_node).parent / ".." / "libexec/lib/node_modules/npm/bin/npm-cli.js"
-    npm_cli = str(npm_cli.resolve())
+    # npm-cli.js lives beside node in different places per distribution:
+    # hostedtoolcache uses lib/node_modules, Homebrew uses libexec/lib.
+    node_root = Path(real_node).parent.parent
+    npm_cli = next(
+        (p for p in (
+            node_root / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js",
+            node_root / "libexec" / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js",
+        ) if p.exists()),
+        None,
+    )
+    if npm_cli is None:
+        import shutil as _sh2
+        npm_cli = Path(_sh2.which("npm"))
+    npm_cli = str(npm_cli)
     install_env = dict(os.environ)
     install_env["PATH"] = str(Path(real_node).parent) + os.pathsep + install_env["PATH"]
     r = subprocess.run([real_node, npm_cli, "install", "--no-audit", "--no-fund"],

@@ -44,21 +44,24 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # esy's bundled cygwin no longer ships awk and melange's runtime
-          # rules invoke one; the runner's Git installation provides gawk.
-          # Expose it both on PATH and inside esy-bash's cygwin bin (with
-          # its DLLs) so dune resolves it either way.
+          # esy's build sandbox strips the outer PATH and its bundled cygwin
+          # ships no awk; melange's rules need one. Copy Git's gawk and its
+          # msys runtime DLLs into esy-bash's cygwin bin so dune finds them.
           $gitusr = "C:\Program Files\Git\usr\bin"
-          Add-Content $env:GITHUB_PATH $gitusr
-          $esyDir = Split-Path (Get-Command esy -ErrorAction SilentlyContinue).Source -ErrorAction SilentlyContinue
-          if (-not $esyDir) { $esyDir = (npm root -g) + "\esy" }
-          $cyg = Get-ChildItem -Path (npm root -g) -Recurse -Filter "bash.exe" |
-            Where-Object { $_.FullName -like "*esy-bash*" } |
-            Select-Object -First 1
-          if ($cyg) {
-            $bin = $cyg.DirectoryName
-            Copy-Item "$gitusr\awk.exe" $bin -ErrorAction SilentlyContinue
-            Copy-Item "$gitusr\..\..\usr\bin\msys-2.0.dll" $bin -ErrorAction SilentlyContinue
+          $esybash = Join-Path (npm root -g) "esy\node_modules\@prometheansacrifice\esy-bash\.cygwin\bin"
+          if (-not (Test-Path $esybash)) {
+            $bash = Get-ChildItem -Path (npm root -g) -Recurse -Filter bash.exe
+              | Where-Object { $_.FullName -like "*esy-bash*" } | Select-Object -First 1
+            if ($bash) { $esybash = $bash.DirectoryName }
+          }
+          Write-Host "esy-bash bin: $esybash"
+          if (Test-Path $esybash) {
+            Copy-Item "$gitusr\awk.exe" $esybash -Force
+            Copy-Item "$gitusr\gawk.exe" $esybash -Force -ErrorAction SilentlyContinue
+            Copy-Item "$gitusr\msys-*.dll" $esybash -Force
+            & "$esybash\bash.exe" -c "awk --version | head -1"
+          } else {
+            Write-Host "esy-bash cygwin bin not found; awk not provisioned"
           }
       - run: esy
       - name: Environment-gated scenarios
