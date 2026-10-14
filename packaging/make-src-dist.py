@@ -30,7 +30,8 @@ def tracked(repo, prefix=""):
 
 def main():
     repo, outdir = sys.argv[1], sys.argv[2]
-    version = json.load(open(os.path.join(repo, "esy.json")))["version"]
+    version = os.environ.get("LEMON_VERSION") or \
+        json.load(open(os.path.join(repo, "esy.json")))["version"]
     base = f"lemon-source-{version}"
     files = tracked(repo)
     for sub in SUBMODULES:

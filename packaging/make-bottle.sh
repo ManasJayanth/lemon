@@ -12,7 +12,7 @@ TAG=$2
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PY=${PYTHON_CMD:-$(command -v python3 || command -v python)}
 
-VERSION=$($PY -c 'import json; print(json.load(open("'"$ROOT"'/esy.json"))["version"])')
+VERSION=${LEMON_VERSION:-$($PY -c 'import json; print(json.load(open("'"$ROOT"'/esy.json"))["version"])')}
 NAME=$(basename "$DIST")          # lemon-<version>-<platform>-<arch>
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/lemon-bottle.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT

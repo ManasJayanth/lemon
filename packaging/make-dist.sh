@@ -30,7 +30,9 @@ if [ ! -f "$BUILD/lemon.byte" ] || [ ! -f "$BUILD/compiler_worker.cma" ]; then
   exit 1
 fi
 
-VERSION=$($PY -c 'import json; print(json.load(open("esy.json"))["version"])')
+# LEMON_VERSION overrides the packaged version (nightlies); it only names
+# artifacts - nothing inside the build embeds it.
+VERSION=${LEMON_VERSION:-$($PY -c 'import json; print(json.load(open("esy.json"))["version"])')}
 OS=$(uname -s)
 case "$OS" in
   Linux) PLATFORM=linux ;;
