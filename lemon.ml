@@ -227,7 +227,8 @@ let main () =
   Dynlink.allow_unsafe_modules true;
   let coordinator = load_worker plugin in
   if js then Unix.putenv "MELANGELIB" Lemon_paths.melange_stdlib;
-  if not (Sys.file_exists ".lemon") then Unix.mkdir ".lemon" 0o700;
+  (try Unix.mkdir ".lemon" 0o700
+   with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
   let rec make_dir n =
     let path = absolute (Printf.sprintf ".lemon/build-%d-%d" (Unix.getpid ()) n) in
     try Unix.mkdir path 0o700; path with Unix.Unix_error (Unix.EEXIST, _, _) -> make_dir (n+1)

@@ -820,10 +820,21 @@ def w10(p, target, jobs):
                         "ocamlrun", str(LEMON_PATH), "build", "-o", str(out), "app.re"],
                        cwd=str(p.dir), stdout=fh, stderr=fh, timeout=int(__import__("os").environ.get("LEMON_BUILD_TIMEOUT","180")), check=True)
     lines = [l for l in trace.read_text().splitlines() if "execve" in l]
-    # only the initial ocamlrun execve may appear: no compiler processes, ever
+    # No compiler processes, ever. Two allowed shapes:
+    # - the initial ocamlrun (and strace's own execve line)
+    # - the stock OCaml linker's ONE shell probe: with a long esy toolchain
+    #   path the executable shebang header falls back to a /bin/sh script,
+    #   and Bytelink.find_bin_sh runs `command -p -v sh` (Sys.command) once
+    #   when the output executable is linked (bytecomp/bytelink.ml).
+    def allowed(line):
+        if "ocamlrun" in line or "strace" in line:
+            return True
+        return "command" in line and "-v" in line and "sh" in line
+    bad = [l for l in lines if not allowed(l)]
+    probes = [l for l in lines if "command" in l and "ocamlrun" not in l]
     assert lines, "no trace captured"
-    assert all("ocamlrun" in l or "strace" in l for l in lines), lines
-    assert len(lines) <= 2, lines
+    assert not bad, bad
+    assert len(probes) <= 1, probes
 
 
 @case("W12", "workers", targets=EXECUTABLE_TARGETS)
@@ -900,7 +911,7 @@ let () = {
 };
 ''')
     p.build(["ops.re"], target="js", out=p.dir / "out")
-    assert p.execute("js", p.dir / "out" / "Ops.js").stdout == (
+    assert p.execute("js", p.dir / "out" / "ops.js").stdout == (
         "red\nblue\n42\n10\n7\n6\ncaught TooBig\n")
 
 
@@ -1476,9 +1487,12 @@ def build_browser_app(p):
     npm_cli = str(npm_cli.resolve())
     install_env = dict(os.environ)
     install_env["PATH"] = str(Path(real_node).parent) + os.pathsep + install_env["PATH"]
-    subprocess.run([real_node, npm_cli, "install", "--no-audit", "--no-fund"],
-                   cwd=str(app), check=True, timeout=600, env=install_env,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    r = subprocess.run([real_node, npm_cli, "install", "--no-audit", "--no-fund"],
+                       cwd=str(app), timeout=600, env=install_env,
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        raise AssertionError("npm install failed:\n" + r.stdout + r.stderr)
+    (app / "npm-install.log").write_text(r.stdout + r.stderr)
     subprocess.run([real_node, "node_modules/vite/bin/vite.js", "build"],
                    cwd=str(app), check=True, timeout=600,
                    stdout=subprocess.DEVNULL)
