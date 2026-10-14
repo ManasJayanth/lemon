@@ -1505,9 +1505,11 @@ def build_browser_app(p):
     if r.returncode != 0:
         raise AssertionError("npm install failed:\n" + r.stdout + r.stderr)
     (app / "npm-install.log").write_text(r.stdout + r.stderr)
-    subprocess.run([real_node, "node_modules/vite/bin/vite.js", "build"],
-                   cwd=str(app), check=True, timeout=600,
-                   stdout=subprocess.DEVNULL)
+    r = subprocess.run([real_node, "node_modules/vite/bin/vite.js", "build"],
+                       cwd=str(app), timeout=600, capture_output=True, text=True)
+    (app / "vite-build.log").write_text(r.stdout + r.stderr)
+    if r.returncode != 0:
+        raise AssertionError("vite build failed:\n" + r.stdout + r.stderr)
     return app
 
 
