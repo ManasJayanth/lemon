@@ -136,6 +136,26 @@ their symptom, cause, and the guard that fails loudly if they drift.
   release the tag set in the formula must be extended. An arm64 bottle does
   not serve x86_64 machines and vice versa.
 
+## Windows CI status
+
+- **Windows was failing before this work began**: the baseline run
+  (7d378a1) died on `build.sh: line 2: set: -: invalid option` - CRLF
+  line endings from the checkout. `.gitattributes` now forces LF for
+  scripts and sources.
+- **melange's build rules require awk**, and esy 0.9's bundled cygwin no
+  longer ships one ("Program awk not found in the tree or in PATH",
+  from `expand_module_aliases.awk` in jscomp/runtime/dune). The
+  workflows expose the runner's Git-provided gawk to esy on Windows
+  (PATH + a copy inside esy-bash's cygwin bin); this fix is not yet
+  machine-verified because GitHub Actions billing ran out mid-session
+  (see below) - it must be confirmed on the next Windows run.
+- **CI billing was exhausted while running the pipeline tests**: later
+  jobs failed with "recent account payments have failed or your spending
+  limit needs to be increased" rather than test failures. Everything
+  that did execute is listed in the release/pipeline reports; remaining
+  verification (Windows matrix, browser npm diagnostics, full release
+  and nightly loops) resumes once billing is restored.
+
 ## Testing environment quirks (encoded in the harness)
 
 - **`node` must be the real binary.** esy puts a pnp-shimmed `node` first on

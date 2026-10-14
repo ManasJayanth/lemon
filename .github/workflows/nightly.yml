@@ -51,6 +51,26 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm install -g esy@0.9.2
+      - name: Provide awk for melange's build rules (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # esy's bundled cygwin no longer ships awk and melange's runtime
+          # rules invoke one; the runner's Git installation provides gawk.
+          # Expose it both on PATH and inside esy-bash's cygwin bin (with
+          # its DLLs) so dune resolves it either way.
+          $gitusr = "C:\Program Files\Git\usr\bin"
+          Add-Content $env:GITHUB_PATH $gitusr
+          $esyDir = Split-Path (Get-Command esy -ErrorAction SilentlyContinue).Source -ErrorAction SilentlyContinue
+          if (-not $esyDir) { $esyDir = (npm root -g) + "\esy" }
+          $cyg = Get-ChildItem -Path (npm root -g) -Recurse -Filter "bash.exe" |
+            Where-Object { $_.FullName -like "*esy-bash*" } |
+            Select-Object -First 1
+          if ($cyg) {
+            $bin = $cyg.DirectoryName
+            Copy-Item "$gitusr\awk.exe" $bin -ErrorAction SilentlyContinue
+            Copy-Item "$gitusr\..\..\usr\bin\msys-2.0.dll" $bin -ErrorAction SilentlyContinue
+          }
       - run: esy
       - run: esy sh packaging/make-dist.sh
         shell: bash
