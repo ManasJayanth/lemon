@@ -6,8 +6,16 @@
 set -eu
 cd "$(dirname "$0")"
 
-# python (some Windows environments expose only 'python')
-PY=$(command -v python3 || command -v python)
+# python: esy's build sandbox may strip the runner PATH on Windows, so fall
+# back to the interpreter setup-python advertises via $pythonLocation
+PY=$(command -v python3 || command -v python || true)
+if [ -z "$PY" ] && [ -n "$pythonLocation" ] && [ -x "$pythonLocation/python" ]; then
+  PY="$pythonLocation/python"
+fi
+if [ -z "$PY" ]; then
+  echo "build.sh: no python3/python on PATH (and no pythonLocation); cannot build" >&2
+  exit 1
+fi
 export PYTHON_CMD="$PY"
 
 OCAMLLIB=$(ocamlc -where)
