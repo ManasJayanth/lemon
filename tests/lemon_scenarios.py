@@ -1547,49 +1547,49 @@ def run_browser_check(app, p, step):
         server.wait(timeout=30)
 
 
-@case("B01", "browser", targets=("js",))
+@case("B01", "browser", targets=("js",), needs=("browser",))
 def b01(p, target, jobs):
     app = build_browser_app(p)
     run_browser_check(app, p, "mount")
 
 
-@case("B02", "browser", targets=("js",))
+@case("B02", "browser", targets=("js",), needs=("browser",))
 def b02(p, target, jobs):
     app = build_browser_app(p)
     run_browser_check(app, p, "click-once")
 
 
-@case("B03", "browser", targets=("js",))
+@case("B03", "browser", targets=("js",), needs=("browser",))
 def b03(p, target, jobs):
     app = build_browser_app(p)
     run_browser_check(app, p, "click-many")
 
 
-@case("B04", "browser", targets=("js",))
+@case("B04", "browser", targets=("js",), needs=("browser",))
 def b04(p, target, jobs):
     app = build_browser_app(p)
     run_browser_check(app, p, "click-many")   # nested <p.hint> state update
 
 
-@case("B05", "browser", targets=("js",))
+@case("B05", "browser", targets=("js",), needs=("browser",))
 def b05(p, target, jobs):
     app = build_browser_app(p)
     run_browser_check(app, p, "click-many")   # conditional render appears
 
 
-@case("B06", "browser", targets=("js",))
+@case("B06", "browser", targets=("js",), needs=("browser",))
 def b06(p, target, jobs):
     app = build_browser_app(p)
     run_browser_check(app, p, "reload")
 
 
-@case("B07", "browser", targets=("js",))
+@case("B07", "browser", targets=("js",), needs=("browser",))
 def b07(p, target, jobs):
     app = build_browser_app(p)
     run_browser_check(app, p, "full")         # console/page-error watcher covers all flows
 
 
-@case("B08", "browser", targets=("js",))
+@case("B08", "browser", targets=("js",), needs=("browser",))
 def b08(p, target, jobs):
     app = build_browser_app(p)                # clean install: built from scratch above
     run_browser_check(app, p, "mount")
