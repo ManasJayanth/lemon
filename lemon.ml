@@ -131,7 +131,9 @@ let publish_js ~out_dir ~tasks ~count ~(react : bool) =
           List.iter
             (fun t ->
                if not t.interface then
-                 copy_tree (t.prefix ^ ".js") (Filename.concat staging (t.name ^ ".js")))
+                 copy_tree (t.prefix ^ ".js")
+                   (Filename.concat staging
+                      (String.uncapitalize_ascii t.name ^ ".js")))
             tasks;
           copy_tree (Filename.concat Lemon_paths.melange_assets "node_modules")
             (Filename.concat staging "node_modules");

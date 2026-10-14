@@ -6,6 +6,7 @@
 # usage: smoke-dist.sh <dist-tree>     (the lemon-<ver>-<os>-<arch> directory)
 set -eu
 DIST=$(cd "$1" && pwd)
+PY=${PYTHON_CMD:-$(command -v python3 || command -v python)}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/lemon-smoke.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
 
@@ -43,7 +44,7 @@ printf 'let () = print_endline "packaged js"\n' > japp.ml
 "$LEMON" build --target js --out-dir js-out japp.ml >/dev/null
 if run_if node; then
   NODE=$(node -e 'console.log(process.execPath)' 2>/dev/null || echo node)
-  "$NODE" js-out/Japp.js
+  "$NODE" js-out/japp.js
 fi
 
 printf '[@react.component]\nlet make = () => <b> {React.string("packaged jsx")} </b>;\n' > comp.re
@@ -51,7 +52,30 @@ printf 'print_endline(ReactDOMServer.renderToStaticMarkup(<Comp />));\n' > rmain
 "$LEMON" build --target js --react --out-dir react-out rmain.re comp.re >/dev/null
 if run_if node; then
   NODE=$(node -e 'console.log(process.execPath)' 2>/dev/null || echo node)
-  "$NODE" react-out/Rmain.js
+  "$NODE" react-out/rmain.js
 fi
+
+# exact-case import resolution: every relative import specifier in the
+# emitted ES modules must match a published file byte-for-byte in case
+# (catches mismatches that case-insensitive filesystems hide)
+"$PY" - "$MOVED" <<'PYEOF2'
+import os, re, sys
+root = sys.argv[1]
+problems = []
+for dirpath, _dirs, files in os.walk(root):
+    if "node_modules" in dirpath.split(os.sep):
+        continue
+    for name in files:
+        if not name.endswith(".js"):
+            continue
+        text = open(os.path.join(dirpath, name), encoding="utf-8").read()
+        for spec in re.findall(r'from\s+"(\.[^"]+)"', text):
+            base = os.path.basename(spec)
+            if base not in os.listdir(dirpath):
+                problems.append(f"{name}: {spec} (have: {os.listdir(dirpath)})")
+if problems:
+    print("smoke-dist.sh: case-sensitive import mismatch:\n" + "\n".join(problems))
+    sys.exit(1)
+PYEOF2
 
 echo "smoke-dist.sh: $DIST ok"

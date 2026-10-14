@@ -817,7 +817,7 @@ def w10(p, target, jobs):
     trace = p.dir / "trace.txt"
     with open(trace, "w") as fh:
         subprocess.run(["strace", "-f", "-e", "trace=execve,fork,vfork",
-                        "ocamlrun", str(_lemon_path()), "build", "-o", str(out), "app.re"],
+                        "ocamlrun", str(LEMON_PATH), "build", "-o", str(out), "app.re"],
                        cwd=str(p.dir), stdout=fh, stderr=fh, timeout=int(__import__("os").environ.get("LEMON_BUILD_TIMEOUT","180")), check=True)
     lines = [l for l in trace.read_text().splitlines() if "execve" in l]
     # only the initial ocamlrun execve may appear: no compiler processes, ever
@@ -852,14 +852,14 @@ def w12(p, target, jobs):
 def j01(p, target, jobs):
     p.write("main.ml", 'let () = print_endline "hello from ocaml js"\n')
     p.build(["main.ml"], target="js", out=p.dir / "out")
-    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "hello from ocaml js\n"
+    assert p.execute("js", p.dir / "out" / "main.js").stdout == "hello from ocaml js\n"
 
 
 @case("J02", "js", targets=("js",))
 def j02(p, target, jobs):
     p.write("main.re", 'print_endline("hello from reason js");\n')
     p.build(["main.re"], target="js", out=p.dir / "out")
-    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "hello from reason js\n"
+    assert p.execute("js", p.dir / "out" / "main.js").stdout == "hello from reason js\n"
 
 
 @case("J03", "js", targets=("js",), jobs=(2,))
@@ -868,7 +868,7 @@ def j03(p, target, jobs):
     p.write("mid.re", 'let v = Dep.v + 1;\n')
     p.write("main.re", 'print_int(Mid.v); print_newline();\n')
     p.build(["main.re", "mid.re", "dep.ml"], target="js", jobs=jobs, out=p.dir / "out")
-    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "4\n"
+    assert p.execute("js", p.dir / "out" / "main.js").stdout == "4\n"
 
 
 @case("J04", "js", targets=("js",))
@@ -912,7 +912,7 @@ def j05(p, target, jobs):
     p.write("main.re", 'print_int(M0.v + M5.v); print_newline();\n')
     p.build(["main.re"] + [f"m{i}.re" for i in range(6)], target="js", jobs=jobs,
              out=p.dir / "out")
-    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "5\n"
+    assert p.execute("js", p.dir / "out" / "main.js").stdout == "5\n"
 
 
 @case("J06", "js", targets=("bytecode", "native", "js"))
@@ -921,7 +921,7 @@ def j06(p, target, jobs):
     p.write("main.re", 'print_int(Lib.answer); print_newline();\n')
     if target == "js":
         p.build(["main.re", "lib.re"], target="js", out=p.dir / "js-out")
-        got = p.execute("js", p.dir / "js-out" / "Main.js").stdout
+        got = p.execute("js", p.dir / "js-out" / "main.js").stdout
     else:
         out = p.dir / f"app{exe(target)}"
         p.build(["main.re", "lib.re"], target=target, out=out)
@@ -936,7 +936,7 @@ def j07(p, target, jobs):
     p.build(["main.re"], target="js", out=p.dir / "out")
     moved = p.dir / "moved elsewhere"
     _sh.move(str(p.dir / "out"), str(moved))
-    assert p.execute("js", moved / "Main.js").stdout == "relocatable\n"
+    assert p.execute("js", moved / "main.js").stdout == "relocatable\n"
 
 
 @case("J08", "js", targets=("js",))
@@ -944,7 +944,7 @@ def j08(p, target, jobs):
     p.mkdir("sp ace dir")
     p.write("sp ace dir/main.re", 'print_endline("spaces");\n')
     p.build(["sp ace dir/main.re"], target="js", out="sp ace dir/out")
-    assert p.execute("js", p.dir / "sp ace dir" / "out" / "Main.js").stdout == "spaces\n"
+    assert p.execute("js", p.dir / "sp ace dir" / "out" / "main.js").stdout == "spaces\n"
 
 
 @case("J09", "js", targets=("js",))
@@ -978,11 +978,11 @@ def j12(p, target, jobs):
     p.write("lib.re", 'let v = 1;\n')
     p.write("main.re", 'print_int(Lib.v); print_newline();\n')
     p.build(["main.re", "lib.re"], target="js", out=p.dir / "out")
-    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "1\n"
+    assert p.execute("js", p.dir / "out" / "main.js").stdout == "1\n"
     p.write("lib.re", 'let v : int = "broken";\n')
     r = p.build(["main.re", "lib.re"], target="js", out=p.dir / "out", check=False)
     assert r.returncode != 0
-    assert p.execute("js", p.dir / "out" / "Main.js").stdout == "1\n"   # earlier output intact
+    assert p.execute("js", p.dir / "out" / "main.js").stdout == "1\n"   # earlier output intact
 
 
 # --------------------------------------------------------------------------
@@ -995,9 +995,9 @@ def p01(p, target, jobs):
     out = p.dir / "out"
     p.build(["main.re"], target="js", out=out)
     assert (out / ".lemon-owned").exists(), "ownership marker missing"
-    assert (out / "Main.js").exists()
+    assert (out / "main.js").exists()
     assert (out / "node_modules" / "melange").is_dir()
-    assert p.execute("js", out / "Main.js").stdout == "first publish\n"
+    assert p.execute("js", out / "main.js").stdout == "first publish\n"
 
 
 @case("P02", "publication", targets=("js",))
@@ -1007,7 +1007,7 @@ def p02(p, target, jobs):
     p.build(["main.re"], target="js", out=out)
     p.write("main.re", 'print_endline("v2");\n')
     p.build(["main.re"], target="js", out=out)
-    assert p.execute("js", out / "Main.js").stdout == "v2\n"
+    assert p.execute("js", out / "main.js").stdout == "v2\n"
     assert (out / ".lemon-owned").exists()
 
 
@@ -1017,10 +1017,10 @@ def p03(p, target, jobs):
     p.write("main.re", 'print_endline("shrunk");\n')
     out = p.dir / "out"
     p.build(["main.re", "extra.re"], target="js", out=out)
-    assert (out / "Extra.js").exists()
+    assert (out / "extra.js").exists()
     p.build(["main.re"], target="js", out=out)
-    assert not (out / "Extra.js").exists(), "obsolete module still published"
-    assert p.execute("js", out / "Main.js").stdout == "shrunk\n"
+    assert not (out / "extra.js").exists(), "obsolete module still published"
+    assert p.execute("js", out / "main.js").stdout == "shrunk\n"
 
 
 @case("P04", "publication", targets=("js",))
@@ -1032,7 +1032,7 @@ def p04(p, target, jobs):
     assert r.returncode != 0
     assert "refus" in r.stderr.lower(), r.stderr
     assert (out / "precious.txt").read_text() == "do not touch\n"
-    assert not (out / "Main.js").exists()
+    assert not (out / "main.js").exists()
 
 
 @case("P05", "publication", targets=("js",))
@@ -1089,7 +1089,7 @@ def p08(p, target, jobs):
     assert r.returncode != 0
     after = sorted((f.relative_to(out), f.read_bytes()) for f in out.rglob("*") if f.is_file())
     assert before == after, "failed rebuild changed published output"
-    assert p.execute("js", out / "Main.js").stdout == "good\n"
+    assert p.execute("js", out / "main.js").stdout == "good\n"
 
 
 @case("P09", "publication", targets=("js",))
@@ -1103,7 +1103,7 @@ def p09(p, target, jobs):
     p.write("main.re", 'print_endline("v2");\n')
     r = p.build(["main.re"], target="js", out=out)
     assert "recovering previous output" in r.stdout, r.stdout
-    assert p.execute("js", out / "Main.js").stdout == "v2\n"
+    assert p.execute("js", out / "main.js").stdout == "v2\n"
     assert not (p.dir / "out.lemon-backup").exists()
 
 
@@ -1114,9 +1114,9 @@ def p10(p, target, jobs):
     stale = p.mkdir("out.lemon-stage-99999")
     (stale / "junk.js").write_text("// stale\n")
     p.build(["main.re"], target="js", out=out)
-    assert (out / "Main.js").exists()
+    assert (out / "main.js").exists()
     assert not stale.exists(), "stale staging directory not cleaned"
-    assert p.execute("js", out / "Main.js").stdout == "stage\n"
+    assert p.execute("js", out / "main.js").stdout == "stage\n"
 
 
 @case("P11", "publication", targets=("js",), needs=("unprivileged",))
@@ -1149,8 +1149,8 @@ def p12(p, target, jobs):
     for pr in procs:
         o, e = pr.communicate(timeout=300)
         assert pr.returncode == 0, (o, e)
-    assert p.execute("js", p.dir / "outa" / "A.js").stdout == "A\n"
-    assert p.execute("js", p.dir / "outb" / "B.js").stdout == "B\n"
+    assert p.execute("js", p.dir / "outa" / "a.js").stdout == "A\n"
+    assert p.execute("js", p.dir / "outb" / "b.js").stdout == "B\n"
 
 
 # --------------------------------------------------------------------------
@@ -1188,7 +1188,9 @@ def w11(p, target, jobs):
 def render_js(p, sources, entry):
     out = p.dir / "out"
     p.build(sources, target="js", out=out, extra=["--react"])
-    return p.execute("js", out / (entry + ".js")).stdout
+    # melange publishes module files lowercase-first (dune melange mode
+    # convention); only the first character differs from the module name
+    return p.execute("js", out / (entry[0].lower() + entry[1:] + ".js")).stdout
 
 
 @case("X01", "react", targets=("js",))

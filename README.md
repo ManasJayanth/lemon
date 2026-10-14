@@ -56,7 +56,7 @@ in-process and bundle the pinned react/react-dom runtimes into the output.
 ```sh
 esy ocamlrun ./_esy/default/build/lemon.byte build --target js --react \
   --out-dir js-out Main.re
-node js-out/Main.js
+node js-out/main.js
 ```
 
 `examples/react-counter` is a Vite application built this way; see the
