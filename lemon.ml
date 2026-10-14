@@ -73,6 +73,106 @@ let process program args log =
 (* lock, adjacent staging, and backup/rollback during replacement.    *)
 (* ------------------------------------------------------------------ *)
 
+(* Rewrite relative ES-module import specifiers in the emitted JavaScript
+   to the exact published filenames. Melange's specifier casing can vary
+   with the producing environment; the published set of module files is
+   the single source of truth. Every relative specifier must resolve
+   exactly afterwards or the build fails. *)
+let normalize_js_imports dir =
+  let list_js root =
+    Array.to_list (Sys.readdir root)
+    |> List.filter (fun n -> Filename.check_suffix n ".js")
+    |> List.map (fun n -> Filename.concat root n) in
+  let published = Hashtbl.create 64 in
+  List.iter (fun path ->
+      let base = Filename.basename path in
+      Hashtbl.replace published (String.lowercase_ascii base) base)
+    (list_js dir);
+  let read_file path =
+    let ic = open_in_bin path in
+    Fun.protect ~finally:(fun () -> close_in ic)
+      (fun () -> really_input_string ic (in_channel_length ic)) in
+  let write_file path text =
+    let oc = open_out_bin path in
+    Fun.protect ~finally:(fun () -> close_out oc)
+      (fun () -> output_string oc text) in
+  (* specifiers look like:  from "./name.js" *)
+  let index_sub line sub from =
+    let n = String.length sub and len = String.length line in
+    let rec go i =
+      if i + n > len then None
+      else if String.sub line i n = sub then Some i
+      else go (i + 1)
+    in
+    go from in
+  let rewrite_line line =
+    let marker = "from \"" in
+    let marker_len = String.length marker in
+    let rec go from_index acc =
+      match index_sub line marker from_index with
+      | None -> acc ^ String.sub line from_index (String.length line - from_index)
+      | Some m ->
+          let after_open = m + marker_len in
+          let prefix = acc ^ String.sub line from_index (after_open - from_index) in
+          (match String.index_from_opt line after_open '"' with
+           | None ->
+               prefix ^ String.sub line after_open (String.length line - after_open)
+           | Some close_q ->
+               let spec = String.sub line after_open (close_q - after_open) in
+               let consumed = close_q + 1 in
+               if String.length spec > 1 && spec.[0] = '.' && Filename.check_suffix spec ".js" then begin
+                 let base = Filename.basename spec in
+                 match Hashtbl.find_opt published (String.lowercase_ascii base) with
+                 | Some exact ->
+                     let dir_part = Filename.dirname spec in
+                     let replacement =
+                       if dir_part = "." then "./" ^ exact
+                       else Filename.concat dir_part exact in
+                     go consumed (prefix ^ replacement ^ "\"")
+                 | None ->
+                     failwith
+                       (Printf.sprintf
+                          "emitted import %s does not match any published module" spec)
+               end
+               else go consumed (prefix ^ spec ^ "\""))
+    in
+    go 0 ""
+  in
+  List.iter (fun path ->
+      let text = read_file path in
+      let lines = String.split_on_char '\n' text in
+      let rewritten = List.map rewrite_line lines in
+      let joined = String.concat "\n" rewritten in
+      if joined <> text then write_file path joined)
+    (list_js dir);
+  (* verification pass: every relative specifier resolves exactly *)
+  List.iter (fun path ->
+      let dir_of = Filename.dirname path in
+      let text = read_file path in
+      List.iter (fun line ->
+          let marker_len = String.length "from \"" in
+          let rec scan from_index =
+            match index_sub line "from \"" from_index with
+            | None -> ()
+            | Some m ->
+                let after_open = m + marker_len in
+                (match String.index_from_opt line after_open '"' with
+                 | None -> ()
+                 | Some close_q ->
+                     let spec = String.sub line after_open (close_q - after_open) in
+                     if String.length spec > 1 && spec.[0] = '.' && Filename.check_suffix spec ".js" then begin
+                       let target = Filename.concat dir_of (Filename.basename spec) in
+                       if not (Sys.file_exists target) then
+                         failwith
+                           (Printf.sprintf "emitted import %s in %s does not resolve in the published output"
+                              spec (Filename.basename path))
+                     end;
+                     scan (close_q + 1))
+          in
+          scan 0)
+        (String.split_on_char '\n' text))
+    (list_js dir)
+
 let publish_js ~out_dir ~tasks ~count ~(react : bool) =
   let parent = Filename.dirname out_dir in
   if not (is_directory parent) then
@@ -139,6 +239,9 @@ let publish_js ~out_dir ~tasks ~count ~(react : bool) =
             (Filename.concat staging "node_modules");
           if react then
             copy_tree Lemon_paths.react_npm (Filename.concat staging "node_modules");
+          (* all module files are staged: pin import specifiers to the
+             exact published names *)
+          normalize_js_imports staging;
           let marker = open_out (Filename.concat staging ".lemon-owned") in
           output_string marker "lemon js output\n";
           close_out marker;
