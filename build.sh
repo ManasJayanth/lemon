@@ -25,13 +25,18 @@ OCAMLOBJINFO=$(command -v ocamlobjinfo)
 pkgdir() {
   name=$1
   # esy sets OCAMLPATH with ';' separators and C:/... drive paths on
-  # Windows; POSIX uses ':'. Convert both to newline-separated and read
-  # with while-read (subshell exit is handled by checking output).
-  sep=$(printf '%s\n' "$OCAMLPATH" | tr ';:' '\n\n' | grep -v '^$' | while IFS= read -r d; do
+  # Windows (where ':' appears inside each path as the drive-letter
+  # colon); POSIX uses ':' between paths. Pick the right separator:
+  # split on ';' only when ';' is present, else split on ':'.
+  case $OCAMLPATH in
+    *\;*) sep=';' ;;
+    *) sep=':' ;;
+  esac
+  found=$(printf '%s' "$OCAMLPATH" | tr "$sep" '\n' | grep -v '^$' | while IFS= read -r d; do
     if [ -e "$d/$name" ]; then printf '%s\n' "$d/$name"; break; fi
   done)
-  if [ -n "$sep" ]; then
-    printf '%s\n' "$sep"
+  if [ -n "$found" ]; then
+    printf '%s\n' "$found"
     return 0
   fi
   echo "build.sh: cannot locate package '$name' on OCAMLPATH" >&2
