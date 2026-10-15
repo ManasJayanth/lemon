@@ -1,4 +1,4 @@
-$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target js --out-dir /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-P05-904197cz/out2 /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-P05-904197cz/out/main.re
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target js --out-dir /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-P05-tn79zq70/out2 /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-P05-tn79zq70/out/main.re
 [exit 1]
 --stdout--
 
@@ -18,7 +18,7 @@ Traceback (most recent call last):
     return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env, cwd=cwd)
   File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 144, in run
     assert ok, detail
-AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'build', '--target', 'js', '--out-dir', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-P05-904197cz/out2', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-P05-904197cz/out/main.re']
+AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'build', '--target', 'js', '--out-dir', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-P05-tn79zq70/out2', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-P05-tn79zq70/out/main.re']
 exit=1
 stdout:
 

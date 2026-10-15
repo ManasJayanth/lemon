@@ -1,4 +1,4 @@
-$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target native -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-I07-90vb2nyi/x.native main.re lib.re lib.rei
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target native -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-I07-8hmcet68/x.native main.re lib.re lib.rei
 [exit 1]
 --stdout--
 

@@ -194,7 +194,6 @@ if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
     MELANGESTDLIB_VALUE="$MELANGESTDLIB" MELANGEASSETS_VALUE="$PWD/melange-assets" \
     REACTLIB_VALUE="$RRLIB" NPMREACT_VALUE="$PWD/vendor/react-npm/node_modules" \
     $PY tools/gen_lemon_paths.py
-    $PY tools/gen_lemon_paths.py
 else
     # no python: generate with sed (paths are known at this point)
     sed -e "s|@BAKED_STDLIB@|$MELANGESTDLIB|g" \

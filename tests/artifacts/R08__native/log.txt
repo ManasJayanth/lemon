@@ -1,4 +1,4 @@
-$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target native -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-R08-tn9p16dk/mix.native main.ml helper.re
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target native -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-R08-07r669u_/mix.native main.ml helper.re
 [exit 1]
 --stdout--
 
@@ -18,7 +18,7 @@ Traceback (most recent call last):
     return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env, cwd=cwd)
   File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 144, in run
     assert ok, detail
-AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'build', '--target', 'native', '-o', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-R08-tn9p16dk/mix.native', 'main.ml', 'helper.re']
+AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'build', '--target', 'native', '-o', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-R08-07r669u_/mix.native', 'main.ml', 'helper.re']
 exit=1
 stdout:
 

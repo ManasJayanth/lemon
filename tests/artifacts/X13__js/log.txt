@@ -1,4 +1,4 @@
-$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target js --out-dir /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-X13-frmks3hn/out --react main.re typed.re
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target js --out-dir /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-X13-qx0la1c7/out --react main.re typed.re
 [exit 1]
 --stdout--
 

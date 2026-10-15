@@ -1,4 +1,4 @@
-$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target native -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-E02-zxyi1rn5/x.native /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-E02-zxyi1rn5/bad.re
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target native -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-E02-v7oe5tft/x.native /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e _h0r3y6q/lemon-E02-v7oe5tft/bad.re
 [exit 1]
 --stdout--
 
