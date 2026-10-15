@@ -24,25 +24,16 @@ OCAMLOBJINFO=$(command -v ocamlobjinfo)
 # Locate a findlib-style package directory on OCAMLPATH.
 pkgdir() {
   name=$1
-  saved=$IFS
+  # esy sets OCAMLPATH with ';' separators and C:/... drive paths on
+  # Windows; POSIX uses ':'. Use while-read so IFS splitting is explicit.
   case $OCAMLPATH in
-    *\;*)
-      # Windows: ';' separators with C:/... drive paths
-      paths=$(printf '%s\n' "$OCAMLPATH" | tr ';' '\n')
-      IFS='\n' ;;
-    *)
-      # POSIX: ':' separators
-      paths=$OCAMLPATH
-      IFS=':' ;;
+    *\;*) printf '%s\n' "$OCAMLPATH" | tr ';' '\n' | while IFS= read -r d; do
+             [ -e "$d/$name" ] && { printf '%s\n' "$d/$name"; exit 0; }
+           done ;;
+    *)     printf '%s\n' "$OCAMLPATH" | tr ':' '\n' | while IFS= read -r d; do
+             [ -e "$d/$name" ] && { printf '%s\n' "$d/$name"; exit 0; }
+           done ;;
   esac
-  for d in $paths; do
-    if [ -n "$d" ] && [ -e "$d/$name" ]; then
-      IFS=$saved
-      printf '%s\n' "$d/$name"
-      return 0
-    fi
-  done
-  IFS=$saved
   echo "build.sh: cannot locate package '$name' on OCAMLPATH" >&2
   exit 1
 }
