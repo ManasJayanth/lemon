@@ -8,6 +8,9 @@ cd "$(dirname "$0")"
 
 OCAMLC=$(command -v ocamlc)
 OCAMLLIB=$(ocamlc -where)
+# export so ocamlc itself can find its standard library inside the
+# Windows esy-bash sandbox where the compiled-in path doesn't resolve
+export OCAMLLIB
 OCAMLOBJINFO=$(command -v ocamlobjinfo)
 
 # Build-time helpers are compiled OCaml with no external dependencies
