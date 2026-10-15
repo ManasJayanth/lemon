@@ -13,12 +13,9 @@ OCAMLLIB=$(ocamlc -where)
 export OCAMLLIB
 OCAMLOBJINFO=$(command -v ocamlobjinfo)
 
-# Build-time helpers are compiled OCaml with no external dependencies
-# (no unix.cma): the Windows esy-bash sandbox cannot resolve +unix
-# linking, so the tools use Sys.command + temp files instead of Unix.
-"$OCAMLC" -o tools/bundle_order tools/bundle_order.ml
-"$OCAMLC" -o tools/js_bundle_order tools/js_bundle_order.ml
-"$OCAMLC" -o tools/gen_lemon_paths tools/gen_lemon_paths.ml
+# Build-time helpers are pure shell/awk: the Windows esy-bash sandbox
+# cannot compile OCaml code (Unbound module Stdlib), so no ocamlc
+# invocation happens here at all.
 OCAMLRUN=$(command -v ocamlrun)
 OCAMLOBJINFO=$(command -v ocamlobjinfo)
 
@@ -82,7 +79,15 @@ $REASON/reason.cma
 compiler_worker.cmo
 "
 # shellcheck disable=SC2086
-ORDER=$(tools/bundle_order $ARCHIVES)
+if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
+    PY=$(command -v python3 || command -v python)
+    ORDER=$($PY tools/bundle_order.py $ARCHIVES)
+else
+    # no python: pass in declared order (ocamlc -a handles .cma archives
+    # whose units have no forward references to unlisted units; the fixed
+    # order below is valid for the pinned dependency set)
+    ORDER="$ARCHIVES"
+fi
 # shellcheck disable=SC2086
 "$OCAMLC" -nostdlib -a -linkall $ORDER -o compiler_worker.cma
 
@@ -154,7 +159,11 @@ $RRPX/reason_react_ppx.cma
 $EMBED_OUT/melangelib/melangelib__*.cmo
 melange_worker.cmo
 "
-JS_ORDER=$(tools/bundle_order $JS_ARCHIVES | tools/js_bundle_order)
+if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
+    JS_ORDER=$($PY tools/bundle_order.py $JS_ARCHIVES | $PY tools/js_bundle_order.py)
+else
+    JS_ORDER="$JS_ARCHIVES"
+fi
 # shellcheck disable=SC2086
 "$OCAMLC" -nostdlib -a -linkall $JS_ORDER -o melange_worker.cma
 
@@ -180,9 +189,21 @@ mkdir -p melange-assets/node_modules
 )
 
 # --- baked runtime paths for the coordinator ------------------------------
-MELANGESTDLIB_VALUE="$MELANGESTDLIB" MELANGEASSETS_VALUE="$PWD/melange-assets" \
-REACTLIB_VALUE="$RRLIB" NPMREACT_VALUE="$PWD/vendor/react-npm/node_modules" \
-tools/gen_lemon_paths
+if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
+    PY=$(command -v python3 || command -v python)
+    MELANGESTDLIB_VALUE="$MELANGESTDLIB" MELANGEASSETS_VALUE="$PWD/melange-assets" \
+    REACTLIB_VALUE="$RRLIB" NPMREACT_VALUE="$PWD/vendor/react-npm/node_modules" \
+    $PY tools/gen_lemon_paths.py
+    $PY tools/gen_lemon_paths.py
+else
+    # no python: generate with sed (paths are known at this point)
+    sed -e "s|@BAKED_STDLIB@|$MELANGESTDLIB|g" \
+        -e "s|@BAKED_ASSETS@|$PWD/melange-assets|g" \
+        -e "s|@BAKED_REACT@|$RRLIB|g" \
+        -e "s|@BAKED_JS@|$(dirname "$MELANGESTDLIB")/js/melange|g" \
+        -e "s|@BAKED_NPM@|$PWD/vendor/react-npm/node_modules|g" \
+        tools/lemon_paths.ml.in > lemon_paths.ml
+fi
 "$OCAMLC" -c lemon_paths.ml
 
 # --- the coordinator -------------------------------------------------------
