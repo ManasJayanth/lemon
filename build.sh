@@ -7,6 +7,8 @@ set -eu
 cd "$(dirname "$0")"
 
 OCAMLC=$(command -v ocamlc)
+OCAMLLIB=$(ocamlc -where)
+OCAMLOBJINFO=$(command -v ocamlobjinfo)
 
 # Build-time helpers are compiled OCaml: the toolchain inside the esy
 # sandbox provides the compiler, so no external interpreter is needed.
