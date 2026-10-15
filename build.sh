@@ -25,15 +25,15 @@ OCAMLOBJINFO=$(command -v ocamlobjinfo)
 pkgdir() {
   name=$1
   # esy sets OCAMLPATH with ';' separators and C:/... drive paths on
-  # Windows; POSIX uses ':'. Use while-read so IFS splitting is explicit.
-  case $OCAMLPATH in
-    *\;*) printf '%s\n' "$OCAMLPATH" | tr ';' '\n' | while IFS= read -r d; do
-             [ -e "$d/$name" ] && { printf '%s\n' "$d/$name"; exit 0; }
-           done ;;
-    *)     printf '%s\n' "$OCAMLPATH" | tr ':' '\n' | while IFS= read -r d; do
-             [ -e "$d/$name" ] && { printf '%s\n' "$d/$name"; exit 0; }
-           done ;;
-  esac
+  # Windows; POSIX uses ':'. Convert both to newline-separated and read
+  # with while-read (subshell exit is handled by checking output).
+  sep=$(printf '%s\n' "$OCAMLPATH" | tr ';:' '\n\n' | grep -v '^$' | while IFS= read -r d; do
+    if [ -e "$d/$name" ]; then printf '%s\n' "$d/$name"; break; fi
+  done)
+  if [ -n "$sep" ]; then
+    printf '%s\n' "$sep"
+    return 0
+  fi
   echo "build.sh: cannot locate package '$name' on OCAMLPATH" >&2
   exit 1
 }
