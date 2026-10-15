@@ -39,6 +39,11 @@ pkgdir() {
   exit 1
 }
 
+if [ -z "${OCAMLPATH:-}" ]; then
+  echo "build.sh: OCAMLPATH is not set; cannot locate packages" >&2
+  exit 1
+fi
+echo "build.sh: OCAMLPATH=$OCAMLPATH" >&2
 PPXLIB=$(pkgdir ppxlib)
 MENHIR=$(pkgdir menhirLib)
 REASONREACT=${reason_react_lemon__lib:-$(pkgdir reason-react)}/reason-react
