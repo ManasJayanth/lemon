@@ -1,0 +1,25 @@
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte hello.ml hello.byte
+[exit 1]
+--stdout--
+
+--stderr--
+Lemon: Dynlink.Error (Dynlink.Inconsistent_import "Worker_api")
+
+
+Exception:
+Traceback (most recent call last):
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 224, in run_case
+    c.fn(project, t, j)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 73, in l05
+    r = p.lemon("hello.ml", "hello.byte")
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 150, in lemon
+    return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env, cwd=cwd)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 144, in run
+    assert ok, detail
+AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'hello.ml', 'hello.byte']
+exit=1
+stdout:
+
+stderr:
+Lemon: Dynlink.Error (Dynlink.Inconsistent_import "Worker_api")
+

@@ -1,0 +1,7 @@
+Exception:
+Traceback (most recent call last):
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 224, in run_case
+    c.fn(project, t, j)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 1162, in p12
+    assert pr.returncode == 0, (o, e)
+AssertionError: ('', 'Lemon: Failure("The JavaScript target is not available in this build")\n')

@@ -1,0 +1,16 @@
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target js --out-dir /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-X15-kruf6pod/out --react broken.re
+[exit 1]
+--stdout--
+
+--stderr--
+Lemon: Failure("Unknown option: --react")
+
+
+Exception:
+Traceback (most recent call last):
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 224, in run_case
+    c.fn(project, t, j)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 1433, in x15
+    assert "broken.re" in r.stderr and "line" in r.stderr, r.stderr
+AssertionError: Lemon: Failure("Unknown option: --react")
+

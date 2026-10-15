@@ -1,0 +1,27 @@
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target js -j 2 --out-dir /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-J03-7xc4v7k2/out main.re mid.re dep.ml
+[exit 1]
+--stdout--
+
+--stderr--
+Lemon: Failure("The JavaScript target is not available in this build")
+
+
+Exception:
+Traceback (most recent call last):
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 224, in run_case
+    c.fn(project, t, j)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 881, in j03
+    p.build(["main.re", "mid.re", "dep.ml"], target="js", jobs=jobs, out=p.dir / "out")
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 165, in build
+    return self.lemon(*args, check=check, env=env, cwd=cwd)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 150, in lemon
+    return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env, cwd=cwd)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 144, in run
+    assert ok, detail
+AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'build', '--target', 'js', '-j', '2', '--out-dir', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-J03-7xc4v7k2/out', 'main.re', 'mid.re', 'dep.ml']
+exit=1
+stdout:
+
+stderr:
+Lemon: Failure("The JavaScript target is not available in this build")
+

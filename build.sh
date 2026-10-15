@@ -6,17 +6,18 @@
 set -eu
 cd "$(dirname "$0")"
 
-OCAMLLIB=$(ocamlc -where)
 OCAMLC=$(command -v ocamlc)
 
 # Build-time helpers are compiled OCaml: the toolchain inside the esy
 # sandbox provides the compiler, so no external interpreter is needed.
-"$OCAMLC" -I "$OCAMLLIB/unix" -o tools/bundle_order \
-  "$OCAMLLIB/unix/unix.cma" tools/bundle_order.ml
-"$OCAMLC" -I "$OCAMLLIB/unix" -o tools/js_bundle_order \
-  "$OCAMLLIB/unix/unix.cma" tools/js_bundle_order.ml
-"$OCAMLC" -I "$OCAMLLIB/unix" -o tools/gen_lemon_paths \
-  "$OCAMLLIB/unix/unix.cma" tools/gen_lemon_paths.ml
+# Use +unix (ocamlc's built-in stdlib-relative path) so the commands work
+# regardless of how the sandbox maps the installation directory.
+"$OCAMLC" -I +unix -o tools/bundle_order \
+  unix.cma tools/bundle_order.ml
+"$OCAMLC" -I +unix -o tools/js_bundle_order \
+  unix.cma tools/js_bundle_order.ml
+"$OCAMLC" -I +unix -o tools/gen_lemon_paths \
+  unix.cma tools/gen_lemon_paths.ml
 OCAMLRUN=$(command -v ocamlrun)
 OCAMLOBJINFO=$(command -v ocamlobjinfo)
 

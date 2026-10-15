@@ -1,0 +1,29 @@
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target js --out-dir /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-X06-64f1_508/out --react main.re app.re
+[exit 1]
+--stdout--
+
+--stderr--
+Lemon: Failure("Unknown option: --react")
+
+
+Exception:
+Traceback (most recent call last):
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 224, in run_case
+    c.fn(project, t, j)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 1298, in x06
+    assert render_js(p, ["main.re", "app.re"], "Main") == \
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 1201, in render_js
+    p.build(sources, target="js", out=out, extra=["--react"])
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 165, in build
+    return self.lemon(*args, check=check, env=env, cwd=cwd)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 150, in lemon
+    return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env, cwd=cwd)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 144, in run
+    assert ok, detail
+AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'build', '--target', 'js', '--out-dir', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-X06-64f1_508/out', '--react', 'main.re', 'app.re']
+exit=1
+stdout:
+
+stderr:
+Lemon: Failure("Unknown option: --react")
+

@@ -1,0 +1,27 @@
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target bytecode -j 4 -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-W03-hhu52gwa/iso.byte main.re a.re b.re c.re
+[exit 1]
+--stdout--
+
+--stderr--
+Lemon: Dynlink.Error (Dynlink.Inconsistent_import "Worker_api")
+
+
+Exception:
+Traceback (most recent call last):
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 224, in run_case
+    c.fn(project, t, j)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 759, in w03
+    p.build(["main.re", "a.re", "b.re", "c.re"], target=target, jobs=jobs, out=out)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 165, in build
+    return self.lemon(*args, check=check, env=env, cwd=cwd)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 150, in lemon
+    return self.run(argv, timeout=timeout, check=(True if check is None else check), env=env, cwd=cwd)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 144, in run
+    assert ok, detail
+AssertionError: args=['ocamlrun', '/Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte', 'build', '--target', 'bytecode', '-j', '4', '-o', '/var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-W03-hhu52gwa/iso.byte', 'main.re', 'a.re', 'b.re', 'c.re']
+exit=1
+stdout:
+
+stderr:
+Lemon: Dynlink.Error (Dynlink.Inconsistent_import "Worker_api")
+

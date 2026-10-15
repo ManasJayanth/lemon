@@ -1,0 +1,15 @@
+$ ocamlrun /Users/psac/development/prometheansacrifice/lemon/_esy/default/build/lemon.byte build --target native -o /var/folders/my/stynlddj1vvfvqlk34__f4wh0000gn/T/lemon-e2e enmmbbdb/lemon-X18-2d2pftmx/x.native --react app.re
+[exit 1]
+--stdout--
+
+--stderr--
+Lemon: Failure("Unknown option: --react")
+
+
+Exception:
+Traceback (most recent call last):
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_harness.py", line 224, in run_case
+    c.fn(project, t, j)
+  File "/Users/psac/development/prometheansacrifice/lemon/tests/lemon_scenarios.py", line 1465, in x18
+    assert "React JSX requires the JavaScript target" in r.stderr
+AssertionError
