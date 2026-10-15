@@ -25,7 +25,8 @@ OCAMLOBJINFO=$(command -v ocamlobjinfo)
 pkgdir() {
   name=$1
   saved=$IFS
-  IFS=:
+  # Windows environments may use ';' as the OCAMLPATH separator
+  IFS=':;'
   for d in $OCAMLPATH; do
     if [ -e "$d/$name" ]; then
       IFS=$saved
