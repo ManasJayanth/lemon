@@ -1,0 +1,25 @@
+# Reusable esy cache step: include this before `esy install`/`esy build`.
+#
+# Caches the esy install trees (compiled toolchain) keyed on the solution
+# lock. Build trees are excluded (they're per-machine); source snapshots
+# are included so esy doesn't re-fetch from the network.
+#
+# Usage in a workflow:
+#   - uses: ./.github/actions/esy-cache
+#     (after checkout, before `esy install` / `esy`)
+---
+name: Cache esy toolchain
+description: Restore/save the esy store keyed on the lock file
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.esy/4/i
+          ~/.esy/4/s
+          ~/.esy/source
+        key: esy-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('esy.lock/index.json') }}
+        restore-keys: |
+          esy-${{ runner.os }}-${{ runner.arch }}-
+          esy-${{ runner.os }}-
