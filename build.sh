@@ -10,16 +10,12 @@ OCAMLC=$(command -v ocamlc)
 OCAMLLIB=$(ocamlc -where)
 OCAMLOBJINFO=$(command -v ocamlobjinfo)
 
-# Build-time helpers are compiled OCaml: the toolchain inside the esy
-# sandbox provides the compiler, so no external interpreter is needed.
-# Use +unix (ocamlc's built-in stdlib-relative path) so the commands work
-# regardless of how the sandbox maps the installation directory.
-"$OCAMLC" -I +unix -o tools/bundle_order \
-  unix.cma tools/bundle_order.ml
-"$OCAMLC" -I +unix -o tools/js_bundle_order \
-  unix.cma tools/js_bundle_order.ml
-"$OCAMLC" -I +unix -o tools/gen_lemon_paths \
-  unix.cma tools/gen_lemon_paths.ml
+# Build-time helpers are compiled OCaml with no external dependencies
+# (no unix.cma): the Windows esy-bash sandbox cannot resolve +unix
+# linking, so the tools use Sys.command + temp files instead of Unix.
+"$OCAMLC" -o tools/bundle_order tools/bundle_order.ml
+"$OCAMLC" -o tools/js_bundle_order tools/js_bundle_order.ml
+"$OCAMLC" -o tools/gen_lemon_paths tools/gen_lemon_paths.ml
 OCAMLRUN=$(command -v ocamlrun)
 OCAMLOBJINFO=$(command -v ocamlobjinfo)
 

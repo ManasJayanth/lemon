@@ -64,10 +64,7 @@ let exe_dir () =
       | Some p -> p
       | None -> absolute Sys.argv.(0)
   in
-  let real =
-    try let st = Unix.stat argv0 in ignore st.Unix.st_kind; argv0
-    with _ -> argv0
-  in
+  let real = argv0 in
   Filename.dirname real
 
 let installed_root () =

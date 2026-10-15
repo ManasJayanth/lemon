@@ -6,41 +6,53 @@
    external interpreter is needed. *)
 open Printf
 
+(* no Unix dependency: run ocamlobjinfo through a temp file so the tools
+   compile with plain ocamlc on every platform (the Windows esy-bash
+   sandbox cannot find the stdlib for +unix linking) *)
+let objinfo_file path out_file =
+  let cmd = Printf.sprintf "ocamlobjinfo %s > %s" (Filename.quote path) (Filename.quote out_file) in
+  ignore (Sys.command cmd);
+  open_in_bin out_file
+
 let objinfo path =
-  let cmd = Printf.sprintf "ocamlobjinfo %s" (Filename.quote path) in
-  let ic = Unix.open_process_in cmd in
-  let units = ref [] and cur = ref None and reqs = ref [] in
-  (try
-     while true do
-       let line = input_line ic in
-       let trimmed = String.trim line in
-       if String.length trimmed > 10 &&
-          String.sub trimmed 0 10 = "Unit name:" then begin
-         (match !cur with Some c -> units := (c, List.rev !reqs) :: !units | None -> ());
-         cur := Some (String.trim (String.sub trimmed 10 (String.length trimmed - 10)));
-         reqs := []
-       end
-       else if String.length line > 0 && line.[0] = '\t' && !cur <> None then begin
-         (* dependency lines look like (original, untrimmed):
-            <TAB><hex-digest><TAB><UnitName> *)
-         let name =
-           match String.index_opt line '\t' with
-           | Some first_tab ->
-             (match String.index_from_opt line (first_tab + 1) '\t' with
-              | Some second_tab when second_tab + 1 < String.length line ->
-                String.trim (String.sub line (second_tab + 1) (String.length line - second_tab - 1))
-              | _ -> "")
-           | None -> ""
-         in
-         if name <> "" then reqs := name :: !reqs
-       end
-     done
-   with End_of_file -> ());
-   (match !cur with Some c -> units := (c, List.rev !reqs) :: !units | None -> ());
-  (match Unix.close_process_in ic with
-   | Unix.WEXITED 0 -> ()
-   | _ -> prerr_endline ("bundle_order: ocamlobjinfo failed on " ^ path); exit 1);
-  List.rev !units
+  let out_file = Filename.temp_file "lemon-objinfo" ".txt" in
+  let result =
+    try
+      let ic = objinfo_file path out_file in
+      let units = ref [] and cur = ref None and reqs = ref [] in
+      (try
+         while true do
+           let line = input_line ic in
+           let trimmed = String.trim line in
+           if String.length trimmed > 10 &&
+              String.sub trimmed 0 10 = "Unit name:" then begin
+             (match !cur with Some c -> units := (c, List.rev !reqs) :: !units | None -> ());
+             cur := Some (String.trim (String.sub trimmed 10 (String.length trimmed - 10)));
+             reqs := []
+           end
+           else if String.length line > 0 && line.[0] = '\t' && !cur <> None then begin
+             let name =
+               match String.index_opt line '\t' with
+               | Some ft ->
+                 (match String.index_from_opt line (ft + 1) '\t' with
+                  | Some st when st + 1 < String.length line ->
+                    String.trim (String.sub line (st + 1) (String.length line - st - 1))
+                  | _ -> "")
+               | None -> ""
+             in
+             if name <> "" then reqs := name :: !reqs
+           end
+         done
+       with End_of_file -> ());
+      (match !cur with Some c -> units := (c, List.rev !reqs) :: !units | None -> ());
+      close_in ic;
+      List.rev !units
+    with e ->
+      (try Sys.remove out_file with _ -> ());
+      raise e
+  in
+  (try Sys.remove out_file with _ -> ());
+  result
 
 let () =
   let files = Sys.argv |> Array.to_list |> List.tl in
