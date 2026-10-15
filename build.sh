@@ -24,17 +24,19 @@ OCAMLOBJINFO=$(command -v ocamlobjinfo)
 # Locate a findlib-style package directory on OCAMLPATH.
 pkgdir() {
   name=$1
-  # esy sets OCAMLPATH with ';' separators and C:/... drive paths on
-  # Windows (where ':' would split at the drive letter); POSIX uses ':'
+  saved=$IFS
   case $OCAMLPATH in
-    *\;*) paths=$(printf '%s\n' "$OCAMLPATH" | tr ';' '\n') ;;
-    *) paths=$OCAMLPATH ;;
+    *\;*)
+      # Windows: ';' separators with C:/... drive paths
+      paths=$(printf '%s\n' "$OCAMLPATH" | tr ';' '\n')
+      IFS='\n' ;;
+    *)
+      # POSIX: ':' separators
+      paths=$OCAMLPATH
+      IFS=':' ;;
   esac
-  saved=$IFS; IFS='
-'
   for d in $paths; do
-    d=$(printf '%s' "$d" | tr -d '\r\n')
-    if [ -e "$d/$name" ]; then
+    if [ -n "$d" ] && [ -e "$d/$name" ]; then
       IFS=$saved
       printf '%s\n' "$d/$name"
       return 0
