@@ -6,20 +6,17 @@
 set -eu
 cd "$(dirname "$0")"
 
-# python: esy's build sandbox may strip the runner PATH on Windows, so fall
-# back to the interpreter setup-python advertises via $pythonLocation
-PY=$(command -v python3 || command -v python || true)
-if [ -z "$PY" ] && [ -n "$pythonLocation" ] && [ -x "$pythonLocation/python" ]; then
-  PY="$pythonLocation/python"
-fi
-if [ -z "$PY" ]; then
-  echo "build.sh: no python3/python on PATH (and no pythonLocation); cannot build" >&2
-  exit 1
-fi
-export PYTHON_CMD="$PY"
-
 OCAMLLIB=$(ocamlc -where)
 OCAMLC=$(command -v ocamlc)
+
+# Build-time helpers are compiled OCaml: the toolchain inside the esy
+# sandbox provides the compiler, so no external interpreter is needed.
+"$OCAMLC" -I "$OCAMLLIB/unix" -o tools/bundle_order \
+  "$OCAMLLIB/unix/unix.cma" tools/bundle_order.ml
+"$OCAMLC" -I "$OCAMLLIB/unix" -o tools/js_bundle_order \
+  "$OCAMLLIB/unix/unix.cma" tools/js_bundle_order.ml
+"$OCAMLC" -I "$OCAMLLIB/unix" -o tools/gen_lemon_paths \
+  "$OCAMLLIB/unix/unix.cma" tools/gen_lemon_paths.ml
 OCAMLRUN=$(command -v ocamlrun)
 OCAMLOBJINFO=$(command -v ocamlobjinfo)
 
@@ -78,7 +75,7 @@ $REASON/reason.cma
 compiler_worker.cmo
 "
 # shellcheck disable=SC2086
-ORDER=$($PY tools/bundle_order.py $ARCHIVES)
+ORDER=$(tools/bundle_order $ARCHIVES)
 # shellcheck disable=SC2086
 "$OCAMLC" -nostdlib -a -linkall $ORDER -o compiler_worker.cma
 
@@ -150,7 +147,7 @@ $RRPX/reason_react_ppx.cma
 $EMBED_OUT/melangelib/melangelib__*.cmo
 melange_worker.cmo
 "
-JS_ORDER=$($PY tools/bundle_order.py $JS_ARCHIVES | $PY tools/js_bundle_order.py)
+JS_ORDER=$(tools/bundle_order $JS_ARCHIVES | tools/js_bundle_order)
 # shellcheck disable=SC2086
 "$OCAMLC" -nostdlib -a -linkall $JS_ORDER -o melange_worker.cma
 
@@ -178,7 +175,7 @@ mkdir -p melange-assets/node_modules
 # --- baked runtime paths for the coordinator ------------------------------
 MELANGESTDLIB_VALUE="$MELANGESTDLIB" MELANGEASSETS_VALUE="$PWD/melange-assets" \
 REACTLIB_VALUE="$RRLIB" NPMREACT_VALUE="$PWD/vendor/react-npm/node_modules" \
-$PY tools/gen_lemon_paths.py
+tools/gen_lemon_paths
 "$OCAMLC" -c lemon_paths.ml
 
 # --- the coordinator -------------------------------------------------------

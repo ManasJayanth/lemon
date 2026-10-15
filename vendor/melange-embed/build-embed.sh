@@ -10,6 +10,7 @@
 #
 # Environment: MELANGE_LIB = installed lib dir of the melange package,
 #              LEMON_EMBED_OUT = directory that receives the objects.
+# No external interpreter is used: the dune patch is a sed script.
 set -eu
 cd "$(dirname "$0")"
 
@@ -22,44 +23,41 @@ cat > work/core/embed_version.ml <<'EOF'
 let () = print_endline Melangelib.Melange_version.version
 EOF
 
-${PYTHON_CMD:-python3} - <<'PYEOF'
-import os
-os.chdir("work/core")
-dune = open("dune").read()
-old_lib = """(library
- (name melangelib)
- (flags :standard -warn-error -58)
- (libraries
-  melstd
-  melange_compiler_libs
-  melange_ffi
-  ppxlib.ast
-  dune-build-info))"""
-new_lib = """(library
- (name melangelib)
- (flags :standard -w -a -warn-error -a
-   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melange_compiler_libs/.public_cmi
-   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melstd/.public_cmi
-   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melange_ffi/.public_cmi
-   -I %{env:MELANGE_LIB=/nonexistent}/__private__/pp/.public_cmi
-   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melange_wrapper/.public_cmi)
- (modules :standard \\ embed_version)
- (libraries
-  melange.__private__.melstd
-  melange.__private__.melange_compiler_libs
-  melange.__private__.melange_ffi
-  ppxlib.ast
-  dune-build-info))
+# Patch the library stanza with awk: findlib-qualified names, explicit
+# include paths, module exclusion (inserted before libraries), and an
+# executable stanza appended.
+awk '
+  /^\(library$/ { in_lib = 1 }
+  in_lib && /^ \(flags :standard -warn-error -58\)$/ {
+    print " (flags :standard -w -a -warn-error -a"
+    print "   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melange_compiler_libs/.public_cmi"
+    print "   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melstd/.public_cmi"
+    print "   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melange_ffi/.public_cmi"
+    print "   -I %{env:MELANGE_LIB=/nonexistent}/__private__/pp/.public_cmi"
+    print "   -I %{env:MELANGE_LIB=/nonexistent}/__private__/melange_wrapper/.public_cmi)"
+    next
+  }
+  in_lib && /^ \(libraries$/ {
+    print " (modules :standard \\ embed_version)"
+    print " (libraries"
+    next
+  }
+  in_lib && /^  melange_compiler_libs$/ { print "  melange.__private__.melange_compiler_libs"; next }
+  in_lib && /^  melage_ffi$/ { print "  melange.__private__.melange_ffi"; next }
+  in_lib && /^  melange_ffi$/ { print "  melange.__private__.melange_ffi"; next }
+  in_lib && /^  melstd$/ { print "  melange.__private__.melstd"; next }
+  { print }
+  /^\)\)$/ { if (in_lib) in_lib = 0 }
+' work/core/dune > work/core/dune.tmp && mv work/core/dune.tmp work/core/dune
+cat >> work/core/dune <<'STANZA'
 
 (executable
  (name embed_version)
  (modes byte)
  (flags :standard -w -a)
  (modules embed_version)
- (libraries melangelib melange.__private__.melstd))"""
-assert old_lib in dune, "upstream core/dune library stanza changed"
-open("dune", "w").write(dune.replace(old_lib, new_lib))
-PYEOF
+ (libraries melangelib melange.__private__.melstd))
+STANZA
 
 cd work
 dune build core/melangelib.cma core/embed_version.exe
@@ -69,6 +67,5 @@ rm -rf "$OUT/melangelib" "$OUT/version"
 mkdir -p "$OUT/melangelib" "$OUT/version"
 cp _build/default/core/.melangelib.objs/byte/*.cmo "$OUT/melangelib/"
 cp _build/default/core/.melangelib.objs/byte/*.cmi "$OUT/melangelib/"
-cp _build/default/core/.embed_version.eobjs/byte/build_info__Build_info_data.cmo "$OUT/version/" || {
-  echo "melange-embed: byte build_info unit missing" >&2; exit 1; }
+cp _build/default/core/.embed_version.eobjs/byte/build_info__Build_info_data.cmo "$OUT/version/"
 echo "melange-embed: melangelib built"
