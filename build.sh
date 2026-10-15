@@ -24,10 +24,16 @@ OCAMLOBJINFO=$(command -v ocamlobjinfo)
 # Locate a findlib-style package directory on OCAMLPATH.
 pkgdir() {
   name=$1
-  saved=$IFS
-  # Windows environments may use ';' as the OCAMLPATH separator
-  IFS=':;'
-  for d in $OCAMLPATH; do
+  # esy sets OCAMLPATH with ';' separators and C:/... drive paths on
+  # Windows (where ':' would split at the drive letter); POSIX uses ':'
+  case $OCAMLPATH in
+    *\;*) paths=$(printf '%s\n' "$OCAMLPATH" | tr ';' '\n') ;;
+    *) paths=$OCAMLPATH ;;
+  esac
+  saved=$IFS; IFS='
+'
+  for d in $paths; do
+    d=$(printf '%s' "$d" | tr -d '\r\n')
     if [ -e "$d/$name" ]; then
       IFS=$saved
       printf '%s\n' "$d/$name"
@@ -39,11 +45,6 @@ pkgdir() {
   exit 1
 }
 
-if [ -z "${OCAMLPATH:-}" ]; then
-  echo "build.sh: OCAMLPATH is not set; cannot locate packages" >&2
-  exit 1
-fi
-echo "build.sh: OCAMLPATH=$OCAMLPATH" >&2
 PPXLIB=$(pkgdir ppxlib)
 MENHIR=$(pkgdir menhirLib)
 REASONREACT=${reason_react_lemon__lib:-$(pkgdir reason-react)}/reason-react
