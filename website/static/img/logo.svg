@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Lemon body -->
+  <ellipse cx="32" cy="38" rx="24" ry="20" fill="#F7D417" stroke="#C9A227" stroke-width="2"/>
+  <!-- Nubs -->
+  <ellipse cx="8.5" cy="38" rx="5" ry="4" fill="#F7D417" stroke="#C9A227" stroke-width="2"/>
+  <ellipse cx="55.5" cy="38" rx="5" ry="4" fill="#F7D417" stroke="#C9A227" stroke-width="2"/>
+  <!-- Dimples -->
+  <circle cx="20" cy="34" r="1.4" fill="#E3B505"/>
+  <circle cx="30" cy="44" r="1.4" fill="#E3B505"/>
+  <circle cx="42" cy="36" r="1.4" fill="#E3B505"/>
+  <circle cx="26" cy="26" r="1.4" fill="#E3B505"/>
+  <circle cx="38" cy="48" r="1.4" fill="#E3B505"/>
+  <!-- Stem -->
+  <path d="M32 18 q1 -5 3 -7" fill="none" stroke="#8D6E63" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Leaf -->
+  <path d="M35 11 q8 -8 16 -4 q-3 9 -16 4z" fill="#7CB342" stroke="#558B2F" stroke-width="1.5"/>
+</svg>

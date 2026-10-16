@@ -1,0 +1,56 @@
+---
+sidebar_position: 2
+---
+
+# Getting started
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org) and [esy](https://esy.sh) (`npm install -g esy`)
+- A git checkout of the sources (`git clone
+  https://github.com/ManasJayanth/lemon.git`)
+
+Lemon currently builds from source with esy, which resolves and builds the
+pinned OCaml toolchain:
+
+```bash
+cd lemon
+esy
+```
+
+## Build and run a program
+
+Build an executable with:
+
+```bash
+esy ocamlrun ./_esy/default/build/lemon.byte build -j 4 -o hello.byte examples/hello.ml
+esy ocamlrun ./hello.byte
+```
+
+For native output, add `--native`:
+
+```bash
+esy ocamlrun ./_esy/default/build/lemon.byte build --native -j 4 -o hello.native examples/hello.ml
+```
+
+Native jobs run stock `ocamlopt` in separate processes. Both modes build
+without running the resulting program. A failed build preserves any existing
+output. The original `lemon.byte SOURCE.ml OUTPUT.byte` invocation remains
+supported.
+
+## Run the end-to-end checks
+
+```bash
+esy python tests/test_build.py
+```
+
+GitHub Actions runs these checks on Linux, macOS ARM/Intel, and Windows. The
+checks execute bytecode and native programs, exercise interfaces and parallel
+dependency scheduling, and verify failed builds do not replace successful
+output.
+
+## Install a release
+
+Prebuilt, relocatable distributions exist for macOS, Linux, and Windows
+(Homebrew, winget, and tarball/zip downloads). See
+[Installing](./installing.mdx).

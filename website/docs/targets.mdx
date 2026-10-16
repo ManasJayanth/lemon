@@ -1,0 +1,44 @@
+---
+sidebar_position: 3
+---
+
+# Targets: Reason, JavaScript, and React
+
+Lemon accepts `.ml/.mli/.re/.rei` sources for every target. Reason is parsed
+by an embedded copy of the pinned Reason parser (no `refmt`, no `-pp`); for
+bytecode and native the parse trees are written as normalized binary AST
+files that the stock compiler pipeline consumes, with diagnostics pointing
+at the original sources.
+
+## JavaScript
+
+`--target js` compiles through an embedded private copy of the pinned
+Melange driver in one process (no `melc` subprocesses) and publishes an ES
+module directory guarded by an ownership marker, a sibling lock, staging,
+and backup/rollback:
+
+```bash
+esy ocamlrun ./_esy/default/build/lemon.byte build --target js \
+  --out-dir js-out Main.re
+node js-out/main.js
+```
+
+## React
+
+Add `--react` to run the embedded React JSX transform in-process and bundle
+the pinned react/react-dom runtimes into the output:
+
+```bash
+esy ocamlrun ./_esy/default/build/lemon.byte build --target js --react \
+  --out-dir js-out Main.re
+node js-out/main.js
+```
+
+[`examples/react-counter`](https://github.com/ManasJayanth/lemon/tree/main/examples/react-counter)
+is a Vite application built this way; see the browser scenarios in `tests/`.
+
+The full end-to-end catalog lives in `tests/test_build.py` (see
+[Compatibility](./compatibility.md) for the pinned toolchain and the
+embedding recipes, and [Known limitations](./limitations.md) for the exact
+boundaries of the current implementation). Every scenario compiles and
+executes a real artifact.
