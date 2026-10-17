@@ -1,0 +1,218 @@
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 5.5rem 1rem 5rem;
+  text-align: center;
+  color: #fff;
+  background:
+    radial-gradient(
+      1100px 520px at 72% -12%,
+      rgba(247, 212, 23, 0.18),
+      transparent 62%
+    ),
+    radial-gradient(
+      900px 480px at 12% 112%,
+      rgba(124, 179, 66, 0.15),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #16171b 0%, #0d0e11 100%);
+}
+
+.heroInner {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.heroLogo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 1.25rem;
+  filter: drop-shadow(0 14px 34px rgba(247, 212, 23, 0.35));
+  animation: float 6s ease-in-out infinite;
+}
+
+.heroTitle {
+  margin-bottom: 0.75rem;
+  font-size: clamp(3rem, 8vw, 4.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.heroTagline {
+  margin-bottom: 1.25rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #f7d417;
+}
+
+.heroSub {
+  margin: 0 auto 1.75rem;
+  max-width: 620px;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #9aa0aa;
+}
+
+.heroBadges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2.25rem;
+}
+
+.badge {
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #c9cdd4;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.heroButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.heroButtons .button {
+  border-radius: 10px;
+  min-width: 170px;
+}
+
+.heroCta {
+  background: #f7d417;
+  color: #17181c;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 8px 24px rgba(247, 212, 23, 0.3);
+}
+
+.heroCta:hover {
+  background: #ffe14d;
+  color: #17181c;
+}
+
+.heroButtons .button--secondary {
+  color: #e6e8ec;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.heroButtons .button--secondary:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+/* Terminal mock */
+.terminal {
+  max-width: 640px;
+  margin: 3rem auto 0;
+  text-align: left;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0a0b0d;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5);
+}
+
+.terminalBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.045);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dotRed {
+  background: #ff5f57;
+}
+.dotYellow {
+  background: #febc2e;
+}
+.dotGreen {
+  background: #28c840;
+}
+
+.terminalTitle {
+  margin-left: auto;
+  margin-right: auto;
+  color: #6e7480;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.terminalBody {
+  padding: 18px 22px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.84rem;
+  line-height: 1.85;
+}
+
+.terminalLine {
+  white-space: pre-wrap;
+  display: flex;
+  gap: 0.6ch;
+}
+
+.terminalPrompt {
+  color: #f7d417;
+  font-weight: 700;
+  flex: none;
+  user-select: none;
+}
+
+.terminalSpacer {
+  flex: none;
+  user-select: none;
+}
+
+.terminalCmd {
+  color: #e6edf3;
+}
+
+.terminalOut {
+  color: #8b949e;
+}
+
+.terminalOk {
+  color: #7ee787;
+}
+
+.terminalEm {
+  color: #c9cdd4;
+}
+
+.terminalLemon {
+  color: #f7d417;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroLogo {
+    animation: none;
+  }
+}
